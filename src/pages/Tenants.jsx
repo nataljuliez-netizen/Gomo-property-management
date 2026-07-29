@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   Button,
@@ -13,19 +13,37 @@ import TenantModal from "../components/Tenants/TenantModal";
 import DeleteTenantModal from "../components/Tenants/DeleteTenantModal";
 
 import {
-  getTenants,
-  addTenant,
-  updateTenant,
-  deleteTenant,
-} from "../services/tenantService";
+  useTenants,
+  useAddTenant,
+  useUpdateTenant,
+  useDeleteTenant,
+} from "../hooks/useTenants";
 
-import { getUnits } from "../services/unitService";
+import { useUnits } from "../hooks/useUnits";
+import { useProperties } from "../hooks/useProperties";
 
 import { can } from "../services/permissionService";
 
 export default function Tenants() {
-  const [tenants, setTenants] = useState([]);
-  const [units, setUnits] = useState([]);
+  const {
+    tenants,
+    loading,
+    error,
+  } = useTenants();
+
+  const {
+    units,
+    loading: unitsLoading,
+  } = useUnits();
+
+  const {
+    properties,
+    loading: propertiesLoading,
+  } = useProperties();
+
+  const addMutation = useAddTenant();
+  const updateMutation = useUpdateTenant();
+  const deleteMutation = useDeleteTenant();
 
   const [search, setSearch] = useState("");
 
@@ -41,26 +59,9 @@ export default function Tenants() {
   const [tenantToDelete, setTenantToDelete] =
     useState(null);
 
-  /* -------------------------------- */
-  /* Permissions                      */
-  /* -------------------------------- */
-
   const canCreate = can("tenant.create");
   const canEdit = can("tenant.edit");
   const canDelete = can("tenant.delete");
-
-  useEffect(() => {
-    loadTenants();
-    loadUnits();
-  }, []);
-
-  function loadTenants() {
-    setTenants(getTenants());
-  }
-
-  function loadUnits() {
-    setUnits(getUnits());
-  }
 
   function openAddModal() {
     if (!canCreate) return;
@@ -76,26 +77,23 @@ export default function Tenants() {
     setShowModal(true);
   }
 
-  function handleSave(tenant) {
-    if (selectedTenant) {
-      if (!canEdit) return;
+  async function handleSave(tenant) {
+    try {
+      if (selectedTenant) {
+        await updateMutation.mutateAsync(tenant);
+      } else {
+        await addMutation.mutateAsync(tenant);
+      }
 
-      updateTenant(tenant);
-    } else {
-      if (!canCreate) return;
-
-      addTenant(tenant);
+      setShowModal(false);
+      setSelectedTenant(null);
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
     }
-
-    loadTenants();
-
-    setShowModal(false);
-    setSelectedTenant(null);
   }
 
   function openDeleteModal(id) {
-    if (!canDelete) return;
-
     const tenant = tenants.find(
       (t) => t.id === id
     );
@@ -104,48 +102,70 @@ export default function Tenants() {
     setShowDeleteModal(true);
   }
 
-  function confirmDelete() {
-    if (!canDelete) return;
-
+  async function confirmDelete() {
     if (!tenantToDelete) return;
 
-    deleteTenant(tenantToDelete.id);
+    try {
+      await deleteMutation.mutateAsync(
+        tenantToDelete.id
+      );
 
-    loadTenants();
-
-    setShowDeleteModal(false);
-    setTenantToDelete(null);
+      setShowDeleteModal(false);
+      setTenantToDelete(null);
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
+    }
   }
 
   const filteredTenants = tenants.filter(
     (tenant) => {
-      const unit =
-        units.find(
-          (u) => u.id === tenant.unitId
-        ) || {};
-
       const text = search.toLowerCase();
 
+      const property =
+        properties.find(
+          (p) => p.id === tenant.propertyId
+        ) || {};
+
       return (
-        tenant.fullName
-          .toLowerCase()
+        tenant.firstName
+          ?.toLowerCase()
+          .includes(text) ||
+
+        tenant.lastName
+          ?.toLowerCase()
           .includes(text) ||
 
         tenant.email
-          .toLowerCase()
+          ?.toLowerCase()
           .includes(text) ||
 
-        tenant.phone
-          .toLowerCase()
-          .includes(text) ||
-
-        (unit.unitNumber || "")
-          .toString()
-          .toLowerCase()
+        property.name
+          ?.toLowerCase()
           .includes(text)
       );
     }
   );
+
+  if (
+    loading ||
+    unitsLoading ||
+    propertiesLoading
+  ) {
+    return (
+      <div className="p-6">
+        Loading...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 text-red-600">
+        {error.message}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -169,9 +189,14 @@ export default function Tenants() {
         <TenantCards
           tenants={filteredTenants}
           units={units}
-          onEdit={canEdit ? openEditModal : undefined}
+          properties={properties}
+          onEdit={
+            canEdit ? openEditModal : undefined
+          }
           onDelete={
-            canDelete ? openDeleteModal : undefined
+            canDelete
+              ? openDeleteModal
+              : undefined
           }
         />
       </Card>
@@ -181,6 +206,7 @@ export default function Tenants() {
           open={showModal}
           tenant={selectedTenant}
           units={units}
+          properties={properties}
           onSave={handleSave}
           onClose={() => {
             setShowModal(false);

@@ -9,11 +9,11 @@ import Button from "../components/common/Button";
 import Input from "../components/common/Input";
 import PageHeader from "../components/common/PageHeader";
 
-import { getProperties } from "../services/propertyService";
-import { getUnits } from "../services/unitService";
-import { getTenants } from "../services/tenantService";
-import { getAllTransactions } from "../services/transactionService";
-import { getAllExpenses } from "../services/expenseService";
+import { useProperties } from "../hooks/useProperties";
+import { useUnits } from "../hooks/useUnits";
+import { useTenants } from "../hooks/useTenants";
+import { useTransactions } from "../hooks/useTransactions";
+import { useExpenses } from "../hooks/useExpenses";
 
 import {
   getReportSettings,
@@ -21,11 +21,11 @@ import {
 } from "../services/reportService";
 
 export default function Reports() {
-  const properties = getProperties();
-  const units = getUnits();
-  const tenants = getTenants();
-  const transactions = getAllTransactions();
-  const expenses = getAllExpenses();
+  const { properties = [] } = useProperties();
+  const { units = [] } = useUnits();
+  const { tenants = [] } = useTenants();
+  const { transactions = [] } = useTransactions();
+  const { expenses = [] } = useExpenses();
 
   const [settings, setSettings] = useState(
     getReportSettings()
@@ -36,17 +36,38 @@ export default function Reports() {
   }, [settings]);
 
   const report = useMemo(() => {
-    const totalIncome = transactions.reduce(
+    const incomeTransactions = transactions.filter(
+      (transaction) =>
+        transaction.type === "Income" ||
+        transaction.category === "Rental Income"
+    );
+
+    const expenseTransactions = transactions.filter(
+      (transaction) =>
+        transaction.type === "Expense"
+    );
+
+    const totalIncome = incomeTransactions.reduce(
       (sum, transaction) =>
-        sum + Number(transaction.rentPaid || 0),
+        sum + Number(transaction.amount || 0),
       0
     );
 
-    const totalExpenses = expenses.reduce(
+    const transactionExpenses =
+      expenseTransactions.reduce(
+        (sum, transaction) =>
+          sum + Number(transaction.amount || 0),
+        0
+      );
+
+    const manualExpenses = expenses.reduce(
       (sum, expense) =>
         sum + Number(expense.amount || 0),
       0
     );
+
+    const totalExpenses =
+      transactionExpenses + manualExpenses;
 
     const netProfit =
       totalIncome - totalExpenses;
@@ -80,8 +101,19 @@ export default function Reports() {
       paid,
       partial,
       due,
+      properties: properties.length,
+      units: units.length,
+      tenants: tenants.length,
+      transactions: transactions.length,
     };
-  }, [transactions, expenses, settings]);
+  }, [
+    transactions,
+    expenses,
+    settings,
+    properties,
+    units,
+    tenants,
+  ]);
 
   function handleChange(e) {
     const { name, value } = e.target;
@@ -94,7 +126,12 @@ export default function Reports() {
 
   function exportCSV() {
     const rows = [
-      ["Financial Report"],
+      ["GOMO Properties Report"],
+      [],
+      ["Properties", report.properties],
+      ["Units", report.units],
+      ["Tenants", report.tenants],
+      ["Transactions", report.transactions],
       [],
       ["Total Rental Income", report.totalIncome],
       ["Total Expenses", report.totalExpenses],
@@ -116,17 +153,19 @@ export default function Reports() {
       type: "text/csv;charset=utf-8;",
     });
 
-    const url = URL.createObjectURL(blob);
+    const url =
+      URL.createObjectURL(blob);
 
     const link =
-      window.document.createElement("a");
+      document.createElement("a");
 
     link.href = url;
-    link.download = "gomo-report.csv";
+    link.download =
+      "gomo-financial-report.csv";
 
-    window.document.body.appendChild(link);
+    document.body.appendChild(link);
     link.click();
-    window.document.body.removeChild(link);
+    document.body.removeChild(link);
 
     URL.revokeObjectURL(url);
   }
@@ -136,13 +175,17 @@ export default function Reports() {
 
     pdf.setFontSize(20);
     pdf.text(
-      "GOMO Property Management",
+      "GOMO Properties",
       20,
       20
     );
 
     pdf.setFontSize(14);
-    pdf.text("Financial Report", 20, 32);
+    pdf.text(
+      "Financial Report",
+      20,
+      32
+    );
 
     pdf.line(20, 38, 190, 38);
 
@@ -150,23 +193,57 @@ export default function Reports() {
 
     let y = 50;
 
-    const addRow = (label, value) => {
+    const addRow = (
+      label,
+      value,
+      currency = true
+    ) => {
       pdf.text(label, 20, y);
+
       pdf.text(
-        `R ${Number(value).toLocaleString()}`,
+        currency
+          ? `R ${Number(value).toLocaleString()}`
+          : String(value),
         140,
         y
       );
+
       y += 10;
     };
 
     addRow(
-      "Total Rental Income",
+      "Properties",
+      report.properties,
+      false
+    );
+
+    addRow(
+      "Units",
+      report.units,
+      false
+    );
+
+    addRow(
+      "Tenants",
+      report.tenants,
+      false
+    );
+
+    addRow(
+      "Transactions",
+      report.transactions,
+      false
+    );
+
+    y += 5;
+
+    addRow(
+      "Rental Income",
       report.totalIncome
     );
 
     addRow(
-      "Total Expenses",
+      "Expenses",
       report.totalExpenses
     );
 
@@ -181,12 +258,12 @@ export default function Reports() {
     );
 
     addRow(
-      "Other Monthly Costs",
+      "Other Costs",
       settings.otherCosts
     );
 
     addRow(
-      "Cash Flow Remaining",
+      "Cash Flow",
       report.cashFlow
     );
 
@@ -226,11 +303,11 @@ export default function Reports() {
       y
     );
 
-    pdf.save("gomo-financial-report.pdf");
+    pdf.save(
+      "gomo-financial-report.pdf"
+    );
   }
-  // PART 2
-
-  return (
+   return (
     <div className="space-y-6">
       <PageHeader
         title="Reports"
@@ -250,10 +327,53 @@ export default function Reports() {
         </div>
       </PageHeader>
 
+      {/* Portfolio Summary */}
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <Card>
+          <p className="text-sm text-gray-500">
+            Properties
+          </p>
+
+          <h2 className="mt-2 text-3xl font-bold text-blue-600">
+            {report.properties}
+          </h2>
+        </Card>
+
+        <Card>
+          <p className="text-sm text-gray-500">
+            Units
+          </p>
+
+          <h2 className="mt-2 text-3xl font-bold text-indigo-600">
+            {report.units}
+          </h2>
+        </Card>
+
+        <Card>
+          <p className="text-sm text-gray-500">
+            Tenants
+          </p>
+
+          <h2 className="mt-2 text-3xl font-bold text-purple-600">
+            {report.tenants}
+          </h2>
+        </Card>
+
+        <Card>
+          <p className="text-sm text-gray-500">
+            Transactions
+          </p>
+
+          <h2 className="mt-2 text-3xl font-bold text-cyan-600">
+            {report.transactions}
+          </h2>
+        </Card>
+      </div>
+
       {/* Financial Summary */}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-
         <Card>
           <p className="text-sm text-gray-500">
             Total Rental Income
@@ -305,10 +425,9 @@ export default function Reports() {
             R {report.cashFlow.toLocaleString()}
           </h2>
         </Card>
-
       </div>
 
-      {/* Mortgage */}
+      {/* Mortgage & Monthly Costs */}
 
       <Card>
         <h2 className="mb-5 text-xl font-semibold">
@@ -316,7 +435,6 @@ export default function Reports() {
         </h2>
 
         <div className="grid gap-4 md:grid-cols-2">
-
           <Input
             label="Monthly Mortgage (R)"
             type="number"
@@ -332,11 +450,9 @@ export default function Reports() {
             value={settings.otherCosts}
             onChange={handleChange}
           />
-
         </div>
 
         <div className="mt-6 rounded-lg bg-blue-50 p-4">
-
           <div className="flex justify-between">
             <span>Rental Income</span>
             <strong>
@@ -380,14 +496,12 @@ export default function Reports() {
               R {report.cashFlow.toLocaleString()}
             </span>
           </div>
-
         </div>
       </Card>
 
       {/* Rent Collection Status */}
 
       <div className="grid gap-4 md:grid-cols-3">
-
         <Card>
           <p className="text-sm text-gray-500">
             Paid
@@ -417,7 +531,6 @@ export default function Reports() {
             {report.due}
           </h2>
         </Card>
-
       </div>
     </div>
   );

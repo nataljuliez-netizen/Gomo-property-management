@@ -1,5 +1,3 @@
-// src/components/Documents/DocumentModal.jsx
-
 import { useEffect, useState } from "react";
 import Modal from "../common/Modal";
 import DocumentForm from "./DocumentForm";
@@ -12,7 +10,8 @@ const emptyDocument = {
   relatedName: "",
   fileName: "",
   fileType: "",
-  fileData: "",
+  fileSize: 0,
+  fileUrl: "",
   notes: "",
 };
 
@@ -23,9 +22,11 @@ export default function DocumentModal({
   document,
   transactions,
   expenses,
+  tenants,
+  properties,
+  units,
 }) {
-  const [currentDocument, setCurrentDocument] =
-    useState(emptyDocument);
+  const [currentDocument, setCurrentDocument] = useState(emptyDocument);
 
   useEffect(() => {
     if (document) {
@@ -50,16 +51,15 @@ export default function DocumentModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={
-        document
-          ? "Edit Document"
-          : "Upload Document"
-      }
+      title={document ? "Edit Document" : "Upload Document"}
     >
       <DocumentForm
         document={currentDocument}
         transactions={transactions}
         expenses={expenses}
+        tenants={tenants}
+        properties={properties}
+        units={units}
         onSubmit={handleSubmit}
         onCancel={onClose}
       />

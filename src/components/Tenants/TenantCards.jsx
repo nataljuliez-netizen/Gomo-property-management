@@ -7,6 +7,7 @@ import {
 export default function TenantCards({
   tenants,
   units,
+  properties,
   onEdit,
   onDelete,
 }) {
@@ -27,12 +28,18 @@ export default function TenantCards({
             (u) => u.id === tenant.unitId
           ) || {};
 
+        const property =
+          properties.find(
+            (p) => p.id === tenant.propertyId
+          ) || {};
+
         return (
           <Card key={tenant.id}>
             <div className="space-y-3">
               <div>
                 <h3 className="text-lg font-semibold">
-                  {tenant.fullName}
+                  {tenant.firstName}{" "}
+                  {tenant.lastName}
                 </h3>
 
                 <p className="text-sm text-slate-500">
@@ -47,8 +54,8 @@ export default function TenantCards({
                 </p>
 
                 <p>
-                  <strong>ID / Passport:</strong>{" "}
-                  {tenant.idNumber || "-"}
+                  <strong>Property:</strong>{" "}
+                  {property.name || "-"}
                 </p>
 
                 <p>
@@ -59,8 +66,24 @@ export default function TenantCards({
                 </p>
 
                 <p>
-                  <strong>Move-in Date:</strong>{" "}
-                  {tenant.moveInDate || "-"}
+                  <strong>Lease:</strong>{" "}
+                  {tenant.leaseStart || "-"}{" "}
+                  →{" "}
+                  {tenant.leaseEnd || "-"}
+                </p>
+
+                <p>
+                  <strong>Rent:</strong>{" "}
+                  {tenant.rent != null
+                    ? `R ${Number(
+                        tenant.rent
+                      ).toLocaleString()}`
+                    : "-"}
+                </p>
+
+                <p>
+                  <strong>Status:</strong>{" "}
+                  {tenant.status || "-"}
                 </p>
 
                 {tenant.notes && (

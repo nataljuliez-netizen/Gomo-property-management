@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   Button,
@@ -12,20 +12,20 @@ import LandlordModal from "../components/landlords/LandlordModal";
 import DeleteLandlordModal from "../components/landlords/DeleteLandlordModal";
 
 import {
-  getLandlords,
-  addLandlord,
-  updateLandlord,
-  deleteLandlord,
-} from "../services/landlordService";
+  useLandlords,
+  useAddLandlord,
+  useUpdateLandlord,
+  useDeleteLandlord,
+} from "../hooks/useLandlords";
 
 import { can } from "../services/permissionService";
 
 export default function Landlords() {
-  const [landlords, setLandlords] = useState([]);
   const [search, setSearch] = useState("");
 
   const [showModal, setShowModal] = useState(false);
-  const [selectedLandlord, setSelectedLandlord] = useState(null);
+  const [selectedLandlord, setSelectedLandlord] =
+    useState(null);
 
   const [showDeleteModal, setShowDeleteModal] =
     useState(false);
@@ -34,20 +34,26 @@ export default function Landlords() {
     useState(null);
 
   /* -------------------------------- */
+  /* React Query                      */
+  /* -------------------------------- */
+
+  const {
+    data: landlords = [],
+    isLoading,
+    error,
+  } = useLandlords();
+
+  const addMutation = useAddLandlord();
+  const updateMutation = useUpdateLandlord();
+  const deleteMutation = useDeleteLandlord();
+
+  /* -------------------------------- */
   /* Permissions                      */
   /* -------------------------------- */
 
   const canCreate = can("landlord.create");
   const canEdit = can("landlord.edit");
   const canDelete = can("landlord.delete");
-
-  useEffect(() => {
-    loadLandlords();
-  }, []);
-
-  function loadLandlords() {
-    setLandlords(getLandlords());
-  }
 
   function openAddModal() {
     if (!canCreate) return;
@@ -63,21 +69,24 @@ export default function Landlords() {
     setShowModal(true);
   }
 
-  function handleSave(landlord) {
-    if (selectedLandlord) {
-      if (!canEdit) return;
+  async function handleSave(landlord) {
+    try {
+      if (selectedLandlord) {
+        if (!canEdit) return;
 
-      updateLandlord(landlord);
-    } else {
-      if (!canCreate) return;
+        await updateMutation.mutateAsync(landlord);
+      } else {
+        if (!canCreate) return;
 
-      addLandlord(landlord);
+        await addMutation.mutateAsync(landlord);
+      }
+
+      setShowModal(false);
+      setSelectedLandlord(null);
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
     }
-
-    loadLandlords();
-
-    setShowModal(false);
-    setSelectedLandlord(null);
   }
 
   function openDeleteModal(id) {
@@ -91,17 +100,21 @@ export default function Landlords() {
     setShowDeleteModal(true);
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!canDelete) return;
-
     if (!landlordToDelete) return;
 
-    deleteLandlord(landlordToDelete.id);
+    try {
+      await deleteMutation.mutateAsync(
+        landlordToDelete.id
+      );
 
-    loadLandlords();
-
-    setShowDeleteModal(false);
-    setLandlordToDelete(null);
+      setShowDeleteModal(false);
+      setLandlordToDelete(null);
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
+    }
   }
 
   const filteredLandlords = landlords.filter(
@@ -110,17 +123,29 @@ export default function Landlords() {
 
       return (
         landlord.name
-          .toLowerCase()
+          ?.toLowerCase()
           .includes(text) ||
         landlord.phone
-          .toLowerCase()
+          ?.toLowerCase()
           .includes(text) ||
         landlord.email
-          .toLowerCase()
+          ?.toLowerCase()
           .includes(text)
       );
     }
   );
+
+  if (isLoading) {
+    return <div className="p-6">Loading landlords...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 text-red-600">
+        {error.message}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

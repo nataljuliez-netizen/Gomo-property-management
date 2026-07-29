@@ -1,7 +1,4 @@
-// src/components/Transactions/TransactionForm.jsx
-
 import { useEffect, useState } from "react";
-
 import {
   Input,
   TextArea,
@@ -15,68 +12,44 @@ export default function TransactionForm({
   onSubmit,
   onCancel,
 }) {
-  const [formData, setFormData] = useState({
+  const emptyForm = {
     tenantId: "",
     propertyId: "",
     unitId: "",
-    billingPeriod: "",
-    rentPayable: "",
-    rentPaid: "",
-    rentDue: 0,
-    dueDate: "",
-    paymentDate: "",
-    status: "Due",
-    notes: "",
-  });
+    type: "Income",
+    category: "Rent",
+    amount: "",
+    transactionDate: "",
+    description: "",
+  };
+
+  const [formData, setFormData] = useState(emptyForm);
 
   useEffect(() => {
     if (transaction) {
-      setFormData(transaction);
-    } else {
       setFormData({
-        tenantId: "",
-        propertyId: "",
-        unitId: "",
-        billingPeriod: "",
-        rentPayable: "",
-        rentPaid: "",
-        rentDue: 0,
-        dueDate: "",
-        paymentDate: "",
-        status: "Due",
-        notes: "",
+        ...emptyForm,
+        ...transaction,
       });
+    } else {
+      setFormData(emptyForm);
     }
   }, [transaction]);
 
   useEffect(() => {
-    calculateValues();
-  }, [formData.rentPayable, formData.rentPaid]);
+    if (!formData.unitId) return;
 
-  function calculateValues() {
-    const payable = Number(formData.rentPayable) || 0;
-    const paid = Number(formData.rentPaid) || 0;
+    const unit = units.find(
+      (u) => u.id === formData.unitId
+    );
 
-    let due = payable - paid;
-
-    if (due < 0) due = 0;
-
-    let status = "Due";
-
-    if (paid > 0 && paid < payable) {
-      status = "Partially Paid";
+    if (unit) {
+      setFormData((prev) => ({
+        ...prev,
+        propertyId: unit.propertyId,
+      }));
     }
-
-    if (paid >= payable && payable > 0) {
-      status = "Paid";
-    }
-
-    setFormData((prev) => ({
-      ...prev,
-      rentDue: due,
-      status,
-    }));
-  }
+  }, [formData.unitId, units]);
 
   function handleChange(e) {
     const { name, value } = e.target;
@@ -90,25 +63,17 @@ export default function TransactionForm({
   function handleSubmit(e) {
     e.preventDefault();
 
-    const tenant = tenants.find(
-      (t) => t.id === formData.tenantId
-    );
-
-    const property = properties.find(
-      (p) => p.id === formData.propertyId
-    );
-
-    const unit = units.find(
-      (u) => u.id === formData.unitId
-    );
-
     onSubmit({
       ...formData,
-      tenantName: tenant?.fullName ?? "",
-      propertyName: property?.name ?? "",
-      unitNumber: unit?.unitNumber ?? "",
+      amount: Number(formData.amount),
     });
   }
+
+  const filteredUnits = units.filter(
+    (u) =>
+      !formData.propertyId ||
+      u.propertyId === formData.propertyId
+  );
 
   return (
     <form
@@ -136,7 +101,7 @@ export default function TransactionForm({
               key={tenant.id}
               value={tenant.id}
             >
-              {tenant.fullName}
+              {tenant.firstName} {tenant.lastName}
             </option>
           ))}
         </select>
@@ -185,93 +150,64 @@ export default function TransactionForm({
             Select Unit
           </option>
 
-          {units.map((unit) => (
+          {filteredUnits.map((unit) => (
             <option
               key={unit.id}
               value={unit.id}
             >
-              {unit.unitNumber}
+              Unit {unit.unitNumber}
             </option>
           ))}
         </select>
       </div>
 
       <Input
-        label="Billing Period"
-        name="billingPeriod"
-        value={formData.billingPeriod}
+        label="Category"
+        name="category"
+        value={formData.category}
         onChange={handleChange}
         required
       />
 
       <Input
-        label="Rent Payable (R)"
+        label="Amount"
+        name="amount"
         type="number"
-        name="rentPayable"
-        value={formData.rentPayable}
+        value={formData.amount}
         onChange={handleChange}
         required
       />
 
       <Input
-        label="Rent Paid (R)"
-        type="number"
-        name="rentPaid"
-        value={formData.rentPaid}
-        onChange={handleChange}
-        required
-      />
-
-      <Input
-        label="Rent Due (R)"
-        value={formData.rentDue}
-        readOnly
-      />
-
-      <Input
-        label="Due Date"
+        label="Transaction Date"
+        name="transactionDate"
         type="date"
-        name="dueDate"
-        value={formData.dueDate}
+        value={formData.transactionDate}
         onChange={handleChange}
         required
-      />
-
-      <Input
-        label="Payment Date"
-        type="date"
-        name="paymentDate"
-        value={formData.paymentDate}
-        onChange={handleChange}
-      />
-
-      <Input
-        label="Status"
-        value={formData.status}
-        readOnly
       />
 
       <TextArea
-        label="Notes"
-        name="notes"
-        value={formData.notes}
+        label="Description"
+        name="description"
+        value={formData.description}
         onChange={handleChange}
       />
 
-      <div className="flex justify-end gap-3 pt-2">
+      <div className="flex justify-end gap-2 pt-2">
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 border rounded-lg"
+          className="px-4 py-2 rounded-lg border"
         >
           Cancel
         </button>
 
         <button
           type="submit"
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+          className="px-4 py-2 rounded-lg bg-blue-600 text-white"
         >
-          Save Transaction
+          Save
         </button>
       </div>
     </form>

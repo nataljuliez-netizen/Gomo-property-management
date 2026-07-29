@@ -1,6 +1,6 @@
 // src/pages/Notes.jsx
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 
 import PageHeader from "../components/common/PageHeader";
@@ -11,21 +11,26 @@ import NoteCards from "../components/Notes/NoteCards";
 import NoteModal from "../components/Notes/NoteModal";
 import DeleteNoteModal from "../components/Notes/DeleteNoteModal";
 
+import { useNotes } from "../hooks/useNotes";
 import {
-  getAllNotes,
-  addNote,
-  updateNote,
-  deleteNote,
-  toggleNoteStatus,
-} from "../services/noteService";
+  useAddNote,
+  useUpdateNote,
+  useDeleteNote,
+} from "../hooks/useNotes";
 
-import { getProperties } from "../services/propertyService";
+import { useProperties } from "../hooks/useProperties";
+import { useTenants } from "../hooks/useTenants";
 
 import { can } from "../services/permissionService";
 
 export default function Notes() {
-  const [notes, setNotes] = useState([]);
-  const [properties, setProperties] = useState([]);
+  const { notes } = useNotes();
+  const { properties } = useProperties();
+  const { tenants } = useTenants();
+
+  const addMutation = useAddNote();
+  const updateMutation = useUpdateNote();
+  const deleteMutation = useDeleteNote();
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] =
@@ -40,33 +45,25 @@ export default function Notes() {
   const [selectedNote, setSelectedNote] =
     useState(null);
 
-  /* -------------------------------- */
-  /* Permissions                      */
-  /* -------------------------------- */
-
   const canCreate = can("note.create");
   const canEdit = can("note.edit");
   const canDelete = can("note.delete");
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  function loadData() {
-    setNotes(getAllNotes());
-    setProperties(getProperties());
-  }
-
   const filteredNotes = useMemo(() => {
     return notes.filter((note) => {
+      const property =
+        properties.find(
+          (p) => p.id === note.propertyId
+        ) || {};
+
       const matchesSearch =
-        note.title
+        (note.title || "")
           .toLowerCase()
           .includes(search.toLowerCase()) ||
-        note.category
+        (note.content || "")
           .toLowerCase()
           .includes(search.toLowerCase()) ||
-        (note.propertyName || "")
+        (property.name || "")
           .toLowerCase()
           .includes(search.toLowerCase());
 
@@ -75,10 +72,16 @@ export default function Notes() {
         note.status === statusFilter;
 
       return (
-        matchesSearch && matchesStatus
+        matchesSearch &&
+        matchesStatus
       );
     });
-  }, [notes, search, statusFilter]);
+  }, [
+    notes,
+    properties,
+    search,
+    statusFilter,
+  ]);
 
   function handleAdd() {
     if (!canCreate) return;
@@ -94,47 +97,55 @@ export default function Notes() {
     setShowModal(true);
   }
 
-  function handleSubmit(data) {
+async function handleSubmit(data) {
+  try {
+    console.log("Submitting:", data);
+
     if (selectedNote) {
-      if (!canEdit) return;
-
-      updateNote(data);
+      await updateMutation.mutateAsync({
+        ...data,
+        id: selectedNote.id,
+      });
     } else {
-      if (!canCreate) return;
-
-      addNote(data);
+      await addMutation.mutateAsync(data);
     }
+
+    console.log("Saved successfully!");
 
     setShowModal(false);
     setSelectedNote(null);
-    loadData();
+  } catch (err) {
+    console.error("Save failed:", err);
+    alert(err.message);
   }
+}
 
   function handleDelete(note) {
-    if (!canDelete) return;
-
     setSelectedNote(note);
     setShowDeleteModal(true);
   }
 
-  function confirmDelete(id) {
-    if (!canDelete) return;
-
-    deleteNote(id);
+  async function confirmDelete(id) {
+    await deleteMutation.mutateAsync(id);
 
     setShowDeleteModal(false);
     setSelectedNote(null);
-    loadData();
   }
 
-  function handleToggle(id) {
-    if (!canEdit) return;
-
-    toggleNoteStatus(id);
-    loadData();
+  async function handleToggle(note) {
+    await updateMutation.mutateAsync({
+      ...note,
+      status:
+        note.status === "Completed"
+          ? "Pending"
+          : "Completed",
+    });
   }
+  console.log("Notes:", notes);
+console.log("Properties:", properties);
+console.log("Tenants:", tenants);
 
-  return (
+    return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <PageHeader
@@ -153,17 +164,13 @@ export default function Notes() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <SearchInput
           value={search}
-          onChange={(e) =>
-            setSearch(e.target.value)
-          }
+          onChange={(e) => setSearch(e.target.value)}
           placeholder="Search notes..."
         />
 
         <select
           value={statusFilter}
-          onChange={(e) =>
-            setStatusFilter(e.target.value)
-          }
+          onChange={(e) => setStatusFilter(e.target.value)}
           className="rounded-lg border px-3 py-2"
         >
           <option>All</option>
@@ -174,19 +181,11 @@ export default function Notes() {
 
       <NoteCards
         notes={filteredNotes}
-        onEdit={
-          canEdit ? handleEdit : undefined
-        }
-        onDelete={
-          canDelete
-            ? handleDelete
-            : undefined
-        }
-        onToggleStatus={
-          canEdit
-            ? handleToggle
-            : undefined
-        }
+        properties={properties}
+        tenants={tenants}
+        onEdit={canEdit ? handleEdit : undefined}
+        onDelete={canDelete ? handleDelete : undefined}
+        onToggleStatus={canEdit ? handleToggle : undefined}
       />
 
       {(canCreate || canEdit) && (
@@ -198,6 +197,7 @@ export default function Notes() {
           }}
           note={selectedNote}
           properties={properties}
+          tenants={tenants}
           onSubmit={handleSubmit}
         />
       )}

@@ -1,157 +1,127 @@
-// src/components/Transactions/TransactionCards.jsx
-
-import Card from "../common/Card";
-import Button from "../common/Button";
-import Badge from "../common/Badge";
-import EmptyState from "../common/EmptyState";
-
-function getStatusVariant(status) {
-  switch (status) {
-    case "Paid":
-      return "success";
-
-    case "Partially Paid":
-      return "warning";
-
-    case "Due":
-      return "danger";
-
-    default:
-      return "default";
-  }
-}
+import {
+  Card,
+  Button,
+  EmptyState,
+} from "../common";
 
 export default function TransactionCards({
   transactions,
+  tenants,
+  properties,
+  units,
   onEdit,
   onDelete,
 }) {
   if (transactions.length === 0) {
     return (
       <EmptyState
-        title="No Rental Transactions"
-        description="Click 'Record Rent' to add your first rental payment."
+        title="No Transactions Found"
+        description="Record your first rent payment."
       />
     );
   }
 
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {transactions.map((transaction) => (
-        <Card key={transaction.id}>
-          <div className="space-y-4">
-            <div className="flex items-start justify-between">
+      {transactions.map((transaction) => {
+        const tenant =
+          tenants.find(
+            (t) => t.id === transaction.tenantId
+          ) || {};
+
+        const property =
+          properties.find(
+            (p) => p.id === transaction.propertyId
+          ) || {};
+
+        const unit =
+          units.find(
+            (u) => u.id === transaction.unitId
+          ) || {};
+
+        return (
+          <Card key={transaction.id}>
+            <div className="space-y-3">
               <div>
                 <h3 className="text-lg font-semibold">
-                  {transaction.tenantName}
+                  {tenant.firstName}{" "}
+                  {tenant.lastName}
                 </h3>
 
-                <p className="text-sm text-gray-500">
-                  {transaction.billingPeriod}
+                <p className="text-sm text-slate-500">
+                  {property.name || "-"}
                 </p>
               </div>
 
-              <Badge
-                variant={getStatusVariant(
-                  transaction.status
-                )}
-              >
-                {transaction.status}
-              </Badge>
-            </div>
+              <div className="space-y-1 text-sm text-slate-600">
+                <p>
+                  <strong>Unit:</strong>{" "}
+                  {unit.unitNumber
+                    ? `Unit ${unit.unitNumber}`
+                    : "-"}
+                </p>
 
-            <div className="space-y-2 text-sm">
-              <p>
-                <strong>Property:</strong>{" "}
-                {transaction.propertyName}
-              </p>
+                <p>
+                  <strong>Category:</strong>{" "}
+                  {transaction.category}
+                </p>
 
-              <p>
-                <strong>Unit:</strong>{" "}
-                {transaction.unitNumber}
-              </p>
+                <p>
+                  <strong>Type:</strong>{" "}
+                  {transaction.type}
+                </p>
 
-              <hr />
+                <p>
+                  <strong>Amount:</strong>{" "}
+                  {transaction.amount != null
+                    ? `R ${Number(
+                        transaction.amount
+                      ).toLocaleString()}`
+                    : "-"}
+                </p>
 
-              <p>
-                <strong>Rent Payable:</strong>{" "}
-                R{" "}
-                {Number(
-                  transaction.rentPayable
-                ).toLocaleString()}
-              </p>
+                <p>
+                  <strong>Date:</strong>{" "}
+                  {transaction.transactionDate ||
+                    "-"}
+                </p>
 
-              <p>
-                <strong>Rent Paid:</strong>{" "}
-                R{" "}
-                {Number(
-                  transaction.rentPaid
-                ).toLocaleString()}
-              </p>
-
-              <p className="font-semibold text-red-600">
-                Rent Due: R{" "}
-                {Number(
-                  transaction.rentDue
-                ).toLocaleString()}
-              </p>
-
-              <hr />
-
-              <p>
-                <strong>Due Date:</strong>{" "}
-                {transaction.dueDate}
-              </p>
-
-              <p>
-                <strong>Payment Date:</strong>{" "}
-                {transaction.paymentDate || "-"}
-              </p>
-
-              {transaction.notes && (
-                <>
-                  <hr />
-
-                  <div>
-                    <strong>Notes</strong>
-
-                    <p className="mt-1 text-gray-600">
-                      {transaction.notes}
-                    </p>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {(onEdit || onDelete) && (
-              <div className="flex gap-2 pt-2">
-                {onEdit && (
-                  <Button
-                    className="flex-1"
-                    onClick={() =>
-                      onEdit(transaction)
-                    }
-                  >
-                    Edit
-                  </Button>
-                )}
-
-                {onDelete && (
-                  <Button
-                    variant="danger"
-                    className="flex-1"
-                    onClick={() =>
-                      onDelete(transaction)
-                    }
-                  >
-                    Delete
-                  </Button>
+                {transaction.description && (
+                  <p>
+                    <strong>Description:</strong>{" "}
+                    {transaction.description}
+                  </p>
                 )}
               </div>
-            )}
-          </div>
-        </Card>
-      ))}
+
+              {(onEdit || onDelete) && (
+                <div className="flex gap-2 pt-3">
+                  {onEdit && (
+                    <Button
+                      onClick={() =>
+                        onEdit(transaction)
+                      }
+                    >
+                      Edit
+                    </Button>
+                  )}
+
+                  {onDelete && (
+                    <Button
+                      variant="danger"
+                      onClick={() =>
+                        onDelete(transaction)
+                      }
+                    >
+                      Delete
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          </Card>
+        );
+      })}
     </div>
   );
 }

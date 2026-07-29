@@ -1,7 +1,4 @@
-// src/components/Expenses/ExpenseForm.jsx
-
 import { useEffect, useState } from "react";
-
 import {
   Input,
   TextArea,
@@ -10,20 +7,30 @@ import {
 export default function ExpenseForm({
   expense,
   properties,
+  units,
   onSubmit,
   onCancel,
 }) {
-  const [formData, setFormData] = useState({
-    expenseName: "",
+  const emptyForm = {
     propertyId: "",
+    unitId: "",
+    vendor: "",
+    category: "",
     amount: "",
     expenseDate: "",
-    notes: "",
-  });
+    description: "",
+  };
+
+  const [formData, setFormData] = useState(emptyForm);
 
   useEffect(() => {
     if (expense) {
-      setFormData(expense);
+      setFormData({
+        ...emptyForm,
+        ...expense,
+      });
+    } else {
+      setFormData(emptyForm);
     }
   }, [expense]);
 
@@ -39,44 +46,37 @@ export default function ExpenseForm({
   function handleSubmit(e) {
     e.preventDefault();
 
-    const property =
-      properties.find(
-        (p) => p.id === formData.propertyId
-      ) || {};
-
     onSubmit({
       ...formData,
-      propertyName: property.name || "",
+      amount: Number(formData.amount),
     });
   }
+
+  const filteredUnits = units.filter(
+    (u) =>
+      !formData.propertyId ||
+      u.propertyId === formData.propertyId
+  );
 
   return (
     <form
       onSubmit={handleSubmit}
       className="space-y-4"
     >
-      <Input
-        label="Expense Name"
-        name="expenseName"
-        value={formData.expenseName}
-        onChange={handleChange}
-        placeholder="e.g. Plumbing Repairs"
-        required
-      />
-
       <div>
         <label className="block mb-1 font-medium">
-          Property (Optional)
+          Property
         </label>
 
         <select
           name="propertyId"
           value={formData.propertyId}
           onChange={handleChange}
-          className="w-full rounded-lg border p-2"
+          className="w-full border rounded-lg p-2"
+          required
         >
           <option value="">
-            General Expense
+            Select Property
           </option>
 
           {properties.map((property) => (
@@ -90,10 +90,51 @@ export default function ExpenseForm({
         </select>
       </div>
 
+      <div>
+        <label className="block mb-1 font-medium">
+          Unit (Optional)
+        </label>
+
+        <select
+          name="unitId"
+          value={formData.unitId}
+          onChange={handleChange}
+          className="w-full border rounded-lg p-2"
+        >
+          <option value="">
+            No Unit
+          </option>
+
+          {filteredUnits.map((unit) => (
+            <option
+              key={unit.id}
+              value={unit.id}
+            >
+              Unit {unit.unitNumber}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <Input
-        label="Amount (R)"
-        type="number"
+        label="Vendor"
+        name="vendor"
+        value={formData.vendor}
+        onChange={handleChange}
+      />
+
+      <Input
+        label="Category"
+        name="category"
+        value={formData.category}
+        onChange={handleChange}
+        required
+      />
+
+      <Input
+        label="Amount"
         name="amount"
+        type="number"
         value={formData.amount}
         onChange={handleChange}
         required
@@ -101,35 +142,34 @@ export default function ExpenseForm({
 
       <Input
         label="Expense Date"
-        type="date"
         name="expenseDate"
+        type="date"
         value={formData.expenseDate}
         onChange={handleChange}
         required
       />
 
       <TextArea
-        label="Notes"
-        name="notes"
-        value={formData.notes}
+        label="Description"
+        name="description"
+        value={formData.description}
         onChange={handleChange}
-        placeholder="Optional notes..."
       />
 
-      <div className="flex justify-end gap-3 pt-2">
+      <div className="flex justify-end gap-2 pt-2">
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-lg border px-4 py-2"
+          className="px-4 py-2 rounded-lg border"
         >
           Cancel
         </button>
 
         <button
           type="submit"
-          className="rounded-lg bg-blue-600 px-4 py-2 text-white"
+          className="px-4 py-2 rounded-lg bg-blue-600 text-white"
         >
-          Save Expense
+          Save
         </button>
       </div>
     </form>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   Button,
@@ -12,20 +12,25 @@ import PropertyCards from "../components/Properties/PropertyCards";
 import PropertyModal from "../components/Properties/PropertyModal";
 import DeletePropertyModal from "../components/Properties/DeletePropertyModal";
 
-import {
-  getProperties,
-  addProperty,
-  updateProperty,
-  deleteProperty,
-} from "../services/propertyService";
-
-import { getLandlords } from "../services/landlordService";
+import { useProperties } from "../hooks/useProperties";
+import { useLandlords } from "../hooks/useLandlords";
 
 import { can } from "../services/permissionService";
 
 export default function Properties() {
-  const [properties, setProperties] = useState([]);
-  const [landlords, setLandlords] = useState([]);
+  const {
+    properties,
+    loading,
+    addProperty,
+    updateProperty,
+    deleteProperty,
+  } = useProperties();
+
+  const {
+    data: landlords = [],
+    isLoading: landlordsLoading,
+  } = useLandlords();
+
   const [search, setSearch] = useState("");
 
   const [showModal, setShowModal] = useState(false);
@@ -37,26 +42,9 @@ export default function Properties() {
   const [propertyToDelete, setPropertyToDelete] =
     useState(null);
 
-  /* -------------------------------- */
-  /* Permissions                      */
-  /* -------------------------------- */
-
   const canCreate = can("property.create");
   const canEdit = can("property.edit");
   const canDelete = can("property.delete");
-
-  useEffect(() => {
-    loadProperties();
-    loadLandlords();
-  }, []);
-
-  function loadProperties() {
-    setProperties(getProperties());
-  }
-
-  function loadLandlords() {
-    setLandlords(getLandlords());
-  }
 
   function openAddModal() {
     if (!canCreate) return;
@@ -72,21 +60,24 @@ export default function Properties() {
     setShowModal(true);
   }
 
-  function handleSave(property) {
-    if (selectedProperty) {
-      if (!canEdit) return;
+  async function handleSave(property) {
+    try {
+      if (selectedProperty) {
+        if (!canEdit) return;
 
-      updateProperty(property);
-    } else {
-      if (!canCreate) return;
+        await updateProperty(property);
+      } else {
+        if (!canCreate) return;
 
-      addProperty(property);
+        await addProperty(property);
+      }
+
+      setShowModal(false);
+      setSelectedProperty(null);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to save property.");
     }
-
-    loadProperties();
-
-    setShowModal(false);
-    setSelectedProperty(null);
   }
 
   function openDeleteModal(id) {
@@ -100,17 +91,20 @@ export default function Properties() {
     setShowDeleteModal(true);
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!canDelete) return;
 
     if (!propertyToDelete) return;
 
-    deleteProperty(propertyToDelete.id);
+    try {
+      await deleteProperty(propertyToDelete.id);
 
-    loadProperties();
-
-    setShowDeleteModal(false);
-    setPropertyToDelete(null);
+      setShowDeleteModal(false);
+      setPropertyToDelete(null);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to delete property.");
+    }
   }
 
   const filteredProperties = properties.filter(
@@ -139,6 +133,14 @@ export default function Properties() {
     }
   );
 
+  if (loading || landlordsLoading) {
+    return (
+      <p className="p-6">
+        Loading...
+      </p>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -162,11 +164,13 @@ export default function Properties() {
           properties={filteredProperties}
           landlords={landlords}
           onEdit={canEdit ? openEditModal : undefined}
-          onDelete={canDelete ? openDeleteModal : undefined}
+          onDelete={
+            canDelete ? openDeleteModal : undefined
+          }
         />
       </Card>
 
-      {canCreate || canEdit ? (
+      {(canCreate || canEdit) && (
         <PropertyModal
           open={showModal}
           property={selectedProperty}
@@ -177,7 +181,7 @@ export default function Properties() {
             setSelectedProperty(null);
           }}
         />
-      ) : null}
+      )}
 
       {canDelete && (
         <DeletePropertyModal

@@ -8,6 +8,7 @@ import {
   Edit,
   Home,
   Trash2,
+  User,
 } from "lucide-react";
 
 function getDueStatus(dueDate) {
@@ -59,10 +60,13 @@ function priorityClasses(priority) {
   switch (priority) {
     case "High":
       return "bg-red-100 text-red-700";
+
     case "Medium":
       return "bg-yellow-100 text-yellow-700";
+
     case "Low":
       return "bg-green-100 text-green-700";
+
     default:
       return "bg-gray-100 text-gray-700";
   }
@@ -76,6 +80,8 @@ function statusClasses(status) {
 
 export default function NoteCards({
   notes,
+  properties,
+  tenants,
   onEdit,
   onDelete,
   onToggleStatus,
@@ -94,6 +100,14 @@ export default function NoteCards({
       {notes.map((note) => {
         const due = getDueStatus(note.dueDate);
 
+        const property = properties.find(
+          (p) => p.id === note.propertyId
+        );
+
+        const tenant = tenants.find(
+          (t) => t.id === note.tenantId
+        );
+
         return (
           <Card
             key={note.id}
@@ -104,15 +118,12 @@ export default function NoteCards({
             }
           >
             <div className="space-y-4">
+
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h3 className="text-lg font-semibold">
                     {note.title}
                   </h3>
-
-                  <p className="mt-1 text-sm text-gray-500">
-                    {note.category}
-                  </p>
                 </div>
 
                 <Badge
@@ -140,23 +151,32 @@ export default function NoteCards({
                 </span>
               </div>
 
-              {note.propertyName && (
+              {property && (
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Home size={16} />
-
-                  <span>{note.propertyName}</span>
+                  <span>{property.name}</span>
                 </div>
               )}
 
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Calendar size={16} />
+              {tenant && (
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <User size={16} />
+                  <span>
+                    {tenant.firstName} {tenant.lastName}
+                  </span>
+                </div>
+              )}
 
-                <span>{note.dueDate}</span>
-              </div>
+              {note.dueDate && (
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Calendar size={16} />
+                  <span>{note.dueDate}</span>
+                </div>
+              )}
 
-              {note.description && (
+              {note.content && (
                 <div className="rounded-lg bg-gray-50 p-3 text-sm text-gray-700">
-                  {note.description}
+                  {note.content}
                 </div>
               )}
 
@@ -167,9 +187,7 @@ export default function NoteCards({
                   {onToggleStatus && (
                     <button
                       onClick={() =>
-                        onToggleStatus(
-                          note.id
-                        )
+                        onToggleStatus(note)
                       }
                       className="flex items-center gap-2 rounded-lg bg-green-600 px-3 py-2 text-sm text-white hover:bg-green-700"
                     >
@@ -181,9 +199,7 @@ export default function NoteCards({
                         </>
                       ) : (
                         <>
-                          <CheckCircle2
-                            size={16}
-                          />
+                          <CheckCircle2 size={16} />
                           Complete
                         </>
                       )}

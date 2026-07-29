@@ -1,96 +1,114 @@
-// src/components/Expenses/ExpenseCards.jsx
-
-import Card from "../common/Card";
-import Button from "../common/Button";
-import EmptyState from "../common/EmptyState";
+import {
+  Card,
+  Button,
+  EmptyState,
+} from "../common";
 
 export default function ExpenseCards({
   expenses,
+  properties,
+  units,
   onEdit,
   onDelete,
 }) {
   if (expenses.length === 0) {
     return (
       <EmptyState
-        title="No Expenses"
-        description="Click 'Record Expense' to add your first expense."
+        title="No Expenses Found"
+        description="Record your first expense."
       />
     );
   }
 
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {expenses.map((expense) => (
-        <Card key={expense.id}>
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-lg font-semibold">
-                {expense.expenseName}
-              </h3>
+      {expenses.map((expense) => {
+        const property =
+          properties.find(
+            (p) => p.id === expense.propertyId
+          ) || {};
 
-              <p className="text-sm text-gray-500">
-                {expense.expenseDate}
-              </p>
-            </div>
+        const unit =
+          units.find(
+            (u) => u.id === expense.unitId
+          ) || {};
 
-            <div className="space-y-2 text-sm">
-              <p>
-                <strong>Property:</strong>{" "}
-                {expense.propertyName ||
-                  "General Expense"}
-              </p>
+        return (
+          <Card key={expense.id}>
+            <div className="space-y-3">
+              <div>
+                <h3 className="text-lg font-semibold">
+                  {expense.category}
+                </h3>
 
-              <p className="text-lg font-bold text-red-600">
-                Amount: R{" "}
-                {Number(
-                  expense.amount
-                ).toLocaleString()}
-              </p>
+                <p className="text-sm text-slate-500">
+                  {property.name || "-"}
+                </p>
+              </div>
 
-              {expense.notes && (
-                <>
-                  <hr />
+              <div className="space-y-1 text-sm text-slate-600">
+                <p>
+                  <strong>Vendor:</strong>{" "}
+                  {expense.vendor || "-"}
+                </p>
 
-                  <div>
-                    <strong>Notes</strong>
+                <p>
+                  <strong>Unit:</strong>{" "}
+                  {unit.unitNumber
+                    ? `Unit ${unit.unitNumber}`
+                    : "-"}
+                </p>
 
-                    <p className="mt-1 text-gray-600">
-                      {expense.notes}
-                    </p>
-                  </div>
-                </>
-              )}
-            </div>
+                <p>
+                  <strong>Amount:</strong>{" "}
+                  {expense.amount != null
+                    ? `R ${Number(
+                        expense.amount
+                      ).toLocaleString()}`
+                    : "-"}
+                </p>
 
-            {(onEdit || onDelete) && (
-              <div className="flex gap-2 pt-2">
-                {onEdit && (
-                  <Button
-                    className="flex-1"
-                    onClick={() =>
-                      onEdit(expense)
-                    }
-                  >
-                    Edit
-                  </Button>
-                )}
+                <p>
+                  <strong>Date:</strong>{" "}
+                  {expense.expenseDate || "-"}
+                </p>
 
-                {onDelete && (
-                  <Button
-                    variant="danger"
-                    className="flex-1"
-                    onClick={() =>
-                      onDelete(expense)
-                    }
-                  >
-                    Delete
-                  </Button>
+                {expense.description && (
+                  <p>
+                    <strong>Description:</strong>{" "}
+                    {expense.description}
+                  </p>
                 )}
               </div>
-            )}
-          </div>
-        </Card>
-      ))}
+
+              {(onEdit || onDelete) && (
+                <div className="flex gap-2 pt-3">
+                  {onEdit && (
+                    <Button
+                      onClick={() =>
+                        onEdit(expense)
+                      }
+                    >
+                      Edit
+                    </Button>
+                  )}
+
+                  {onDelete && (
+                    <Button
+                      variant="danger"
+                      onClick={() =>
+                        onDelete(expense)
+                      }
+                    >
+                      Delete
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          </Card>
+        );
+      })}
     </div>
   );
 }

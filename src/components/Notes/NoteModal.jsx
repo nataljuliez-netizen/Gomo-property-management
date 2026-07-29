@@ -8,6 +8,7 @@ export default function NoteModal({
   onClose,
   note,
   properties,
+  tenants,
   onSubmit,
 }) {
   if (!open) return null;
@@ -16,15 +17,13 @@ export default function NoteModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={
-        note
-          ? "Edit Reminder"
-          : "Add Reminder"
-      }
+      title={note ? "Edit Note" : "Add Note"}
+      size="lg"
     >
       <NoteForm
         note={note}
         properties={properties}
+        tenants={tenants}
         onSubmit={onSubmit}
         onCancel={onClose}
       />

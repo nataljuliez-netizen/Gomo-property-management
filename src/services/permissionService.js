@@ -35,6 +35,12 @@ const permissions = {
     "transaction.edit",
     "transaction.delete",
 
+    // Expenses
+    "expense.view",
+    "expense.create",
+    "expense.edit",
+    "expense.delete",
+
     // Documents
     "document.view",
     "document.create",
@@ -60,47 +66,72 @@ const permissions = {
   ],
 
   [ROLES.PROPERTY_MANAGER]: [
+    // Dashboard
     "dashboard.view",
 
+    // Properties
     "property.view",
     "property.create",
     "property.edit",
 
+    // Units
     "unit.view",
     "unit.create",
     "unit.edit",
 
+    // Tenants
     "tenant.view",
     "tenant.create",
     "tenant.edit",
 
+    // Transactions
     "transaction.view",
     "transaction.create",
     "transaction.edit",
 
+    // Expenses
+    "expense.view",
+    "expense.create",
+    "expense.edit",
+
+    // Documents
     "document.view",
     "document.create",
     "document.edit",
 
+    // Notes
     "note.view",
     "note.create",
     "note.edit",
   ],
 
   [ROLES.BOOKKEEPER]: [
+    // Dashboard
     "dashboard.view",
 
+    // Transactions
     "transaction.view",
     "transaction.create",
     "transaction.edit",
+    "transaction.delete",
 
+    // Expenses
+    "expense.view",
+    "expense.create",
+    "expense.edit",
+    "expense.delete",
+
+    // Documents
     "document.view",
 
+    // Reports
     "report.view",
     "report.export",
 
+    // Audit
     "audit.view",
 
+    // Settings
     "settings.view",
   ],
 };
@@ -108,7 +139,9 @@ const permissions = {
 export function can(permission) {
   const role = getCurrentRole();
 
-  if (!role) return false;
+  if (!role) {
+    return false;
+  }
 
-  return permissions[role]?.includes(permission);
+  return permissions[role]?.includes(permission) ?? false;
 }

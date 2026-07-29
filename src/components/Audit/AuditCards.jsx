@@ -1,5 +1,3 @@
-// src/components/Audit/AuditCards.jsx
-
 import { Card, Badge, EmptyState } from "../common";
 import {
   Calendar,
@@ -14,10 +12,13 @@ function getBadgeVariant(action) {
   switch (action) {
     case "Created":
       return "success";
+
     case "Updated":
       return "warning";
+
     case "Deleted":
       return "danger";
+
     default:
       return "default";
   }
@@ -27,10 +28,13 @@ function getIcon(action) {
   switch (action) {
     case "Created":
       return <PlusCircle size={18} />;
+
     case "Updated":
       return <Pencil size={18} />;
+
     case "Deleted":
       return <Trash2 size={18} />;
+
     default:
       return <FileText size={18} />;
   }
@@ -49,10 +53,11 @@ export default function AuditCards({ logs }) {
   return (
     <div className="grid gap-4">
       {logs.map((log) => {
-        const date = new Date(log.timestamp);
+        const date = new Date(log.createdAt);
 
         return (
           <Card key={log.id}>
+
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
 
               <div className="flex gap-4">
@@ -62,6 +67,7 @@ export default function AuditCards({ logs }) {
                 </div>
 
                 <div className="space-y-2">
+
                   <div className="flex items-center gap-2">
                     <Badge variant={getBadgeVariant(log.action)}>
                       {log.action}
@@ -69,7 +75,7 @@ export default function AuditCards({ logs }) {
                   </div>
 
                   <p className="text-gray-800">
-                    {log.description}
+                    {log.changes?.description || "No description"}
                   </p>
 
                   <div className="flex flex-wrap gap-4 text-sm text-gray-500">
@@ -85,11 +91,13 @@ export default function AuditCards({ logs }) {
                     </div>
 
                   </div>
+
                 </div>
 
               </div>
 
             </div>
+
           </Card>
         );
       })}

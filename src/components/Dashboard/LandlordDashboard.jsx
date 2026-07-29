@@ -3,7 +3,6 @@ import {
   DoorOpen,
   Users,
   DollarSign,
-  Plus,
   Home,
   Receipt,
   NotebookPen,
@@ -13,20 +12,18 @@ import { useNavigate } from "react-router-dom";
 
 import Card from "../common/Card";
 
+import { useProperties } from "../../hooks/useProperties";
+import { useUnits } from "../../hooks/useUnits";
+import { useTenants } from "../../hooks/useTenants";
+import { useTransactions } from "../../hooks/useTransactions";
+
 export default function LandlordDashboard() {
   const navigate = useNavigate();
 
-  const properties =
-    JSON.parse(localStorage.getItem("properties")) || [];
-
-  const units =
-    JSON.parse(localStorage.getItem("units")) || [];
-
-  const tenants =
-    JSON.parse(localStorage.getItem("tenants")) || [];
-
-  const transactions =
-    JSON.parse(localStorage.getItem("transactions")) || [];
+  const { properties = [] } = useProperties();
+  const { units = [] } = useUnits();
+  const { tenants = [] } = useTenants();
+  const { transactions = [] } = useTransactions();
 
   const occupiedUnits = units.filter(
     (unit) => unit.status === "Occupied"
@@ -36,16 +33,19 @@ export default function LandlordDashboard() {
     (unit) => unit.status === "Vacant"
   ).length;
 
-  const monthlyIncome = transactions.reduce(
-    (sum, transaction) =>
-      sum + Number(transaction.rentPaid || 0),
-    0
-  );
+  const monthlyIncome = transactions
+    .filter(
+      (transaction) =>
+        transaction.type === "Income" ||
+        transaction.category === "Rental Income"
+    )
+    .reduce(
+      (sum, transaction) => sum + Number(transaction.amount || 0),
+      0
+    );
 
   return (
     <div className="space-y-8">
-
-      {/* Header */}
 
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
 
@@ -60,8 +60,6 @@ export default function LandlordDashboard() {
         </div>
 
       </div>
-
-      {/* Quick Actions */}
 
       <div className="rounded-2xl border bg-white p-6 shadow-sm">
 
@@ -78,9 +76,7 @@ export default function LandlordDashboard() {
             <Building2 className="text-emerald-600" />
 
             <div className="text-left">
-              <p className="font-semibold">
-                Add Property
-              </p>
+              <p className="font-semibold">Add Property</p>
 
               <p className="text-sm text-slate-500">
                 Create a property
@@ -95,9 +91,7 @@ export default function LandlordDashboard() {
             <Home className="text-blue-600" />
 
             <div className="text-left">
-              <p className="font-semibold">
-                Add Tenant
-              </p>
+              <p className="font-semibold">Add Tenant</p>
 
               <p className="text-sm text-slate-500">
                 Register tenant
@@ -143,8 +137,6 @@ export default function LandlordDashboard() {
 
       </div>
 
-      {/* Summary Cards */}
-
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
 
         <Card
@@ -172,8 +164,6 @@ export default function LandlordDashboard() {
         />
 
       </div>
-
-      {/* Lower Grid */}
 
       <div className="grid gap-6 lg:grid-cols-2">
 
@@ -227,8 +217,7 @@ export default function LandlordDashboard() {
             <div className="space-y-4">
 
               {transactions
-                .slice(-5)
-                .reverse()
+                .slice(0, 5)
                 .map((transaction) => (
                   <div
                     key={transaction.id}
@@ -249,7 +238,7 @@ export default function LandlordDashboard() {
                     <span className="font-semibold text-emerald-600">
                       R{" "}
                       {Number(
-                        transaction.rentPaid || 0
+                        transaction.amount || 0
                       ).toLocaleString()}
                     </span>
 

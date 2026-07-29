@@ -10,6 +10,8 @@ export default function DocumentCards({
   onEdit,
   onDelete,
 }) {
+  console.log("Documents:", JSON.stringify(documents, null, 2));
+
   if (documents.length === 0) {
     return (
       <EmptyState
@@ -20,234 +22,167 @@ export default function DocumentCards({
   }
 
   function openDocument(doc) {
-    try {
-      if (!doc.fileData) {
-        alert("Document could not be opened.");
-        return;
-      }
+    console.log("Opening document:", doc);
 
-      if (doc.fileType?.startsWith("image/")) {
-        window.open(doc.fileData, "_blank");
-        return;
-      }
-
-      if (doc.fileType === "application/pdf") {
-        const base64 = doc.fileData.split(",")[1];
-
-        const byteCharacters = atob(base64);
-        const byteNumbers = new Array(
-          byteCharacters.length
-        );
-
-        for (
-          let i = 0;
-          i < byteCharacters.length;
-          i++
-        ) {
-          byteNumbers[i] =
-            byteCharacters.charCodeAt(i);
-        }
-
-        const byteArray = new Uint8Array(
-          byteNumbers
-        );
-
-        const blob = new Blob([byteArray], {
-          type: "application/pdf",
-        });
-
-        const url =
-          URL.createObjectURL(blob);
-
-        window.open(url, "_blank");
-
-        setTimeout(() => {
-          URL.revokeObjectURL(url);
-        }, 10000);
-
-        return;
-      }
-
-      window.open(doc.fileData, "_blank");
-    } catch (error) {
-      console.error(error);
-      alert("Unable to preview this document.");
+    if (!doc.fileUrl || doc.fileUrl.trim() === "") {
+      console.error("Missing fileUrl:", doc);
+      alert("Document could not be opened.");
+      return;
     }
+
+    window.open(doc.fileUrl, "_blank");
   }
 
   function downloadDocument(doc) {
-    try {
-      const link =
-        window.document.createElement("a");
+    console.log("Downloading document:", doc);
 
-      link.href = doc.fileData;
-      link.download = doc.fileName;
-
-      window.document.body.appendChild(link);
-      link.click();
-      window.document.body.removeChild(link);
-    } catch (error) {
-      console.error(error);
-      alert("Unable to download this document.");
+    if (!doc.fileUrl || doc.fileUrl.trim() === "") {
+      console.error("Missing fileUrl:", doc);
+      alert("Document could not be downloaded.");
+      return;
     }
+
+    const link = document.createElement("a");
+    link.href = doc.fileUrl;
+    link.download = doc.fileName || "document";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 
   function formatFileSize(bytes) {
     if (!bytes) return "";
 
-    if (bytes < 1024) {
-      return `${bytes} B`;
-    }
+    if (bytes < 1024) return `${bytes} B`;
 
     if (bytes < 1024 * 1024) {
-      return `${(
-        bytes / 1024
-      ).toFixed(1)} KB`;
+      return `${(bytes / 1024).toFixed(1)} KB`;
     }
 
-    return `${(
-      bytes /
-      (1024 * 1024)
-    ).toFixed(2)} MB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   }
 
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {documents.map((doc) => (
-        <Card key={doc.id}>
-          <div className="space-y-4">
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="text-lg font-semibold">
-                  {doc.documentName}
-                </h3>
+      {documents.map((doc) => {
+        console.log("Document Card:", JSON.stringify(doc, null, 2));
 
-                <p className="text-sm text-gray-500">
-                  {new Date(
-                    doc.uploadedAt
-                  ).toLocaleDateString()}
-                </p>
-              </div>
-
-              <Badge>
-                {doc.documentType}
-              </Badge>
-            </div>
-
-            <div className="overflow-hidden rounded-lg border bg-gray-50">
-              {doc.fileType?.startsWith(
-                "image/"
-              ) ? (
-                <img
-                  src={doc.fileData}
-                  alt={doc.documentName}
-                  className="h-48 w-full object-cover"
-                />
-              ) : (
-                <div className="flex h-48 flex-col items-center justify-center text-center">
-                  <div className="text-5xl">
-                    📄
-                  </div>
-
-                  <p className="mt-3 font-medium">
-                    PDF Document
-                  </p>
+        return (
+          <Card key={doc.id}>
+            <div className="space-y-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold">
+                    {doc.documentName}
+                  </h3>
 
                   <p className="text-sm text-gray-500">
-                    Click Preview to open
+                    {doc.uploadedAt
+                      ? new Date(doc.uploadedAt).toLocaleDateString()
+                      : ""}
                   </p>
                 </div>
-              )}
-            </div>
 
-            <div className="space-y-2 text-sm">
-              <p>
-                <strong>Related To:</strong>{" "}
-                {doc.relatedType}
-              </p>
+                <Badge>{doc.documentType}</Badge>
+              </div>
 
-              <p>
-                <strong>Record:</strong>{" "}
-                {doc.relatedName}
-              </p>
+              <div className="overflow-hidden rounded-lg border bg-gray-50">
+                {doc.fileType?.startsWith("image/") ? (
+                  <img
+                    src={doc.fileUrl}
+                    alt={doc.documentName}
+                    className="h-48 w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-48 flex-col items-center justify-center text-center">
+                    <div className="text-5xl">📄</div>
 
-              <p className="break-all">
-                <strong>File:</strong>{" "}
-                {doc.fileName}
-              </p>
+                    <p className="mt-3 font-medium">
+                      PDF Document
+                    </p>
 
-              {doc.fileSize > 0 && (
-                <p>
-                  <strong>Size:</strong>{" "}
-                  {formatFileSize(
-                    doc.fileSize
-                  )}
-                </p>
-              )}
-
-              {doc.notes && (
-                <>
-                  <hr />
-
-                  <div>
-                    <strong>Notes</strong>
-
-                    <p className="mt-1 whitespace-pre-wrap text-gray-600">
-                      {doc.notes}
+                    <p className="text-sm text-gray-500">
+                      Click Preview to open
                     </p>
                   </div>
-                </>
-              )}
-            </div>
+                )}
+              </div>
 
-            <div
-              className={`grid gap-2 ${
-                onEdit || onDelete
-                  ? "grid-cols-2"
-                  : "grid-cols-2"
-              }`}
-            >
-              <Button
-                onClick={() =>
-                  openDocument(doc)
-                }
-              >
-                Preview
-              </Button>
+              <div className="space-y-2 text-sm">
+                <p>
+                  <strong>Related To:</strong>{" "}
+                  {doc.relatedType}
+                </p>
 
-              <Button
-                variant="secondary"
-                onClick={() =>
-                  downloadDocument(doc)
-                }
-              >
-                Download
-              </Button>
+                <p>
+                  <strong>Record:</strong>{" "}
+                  {doc.relatedName}
+                </p>
 
-              {onEdit && (
-                <Button
-                  onClick={() =>
-                    onEdit(doc)
-                  }
-                >
-                  Edit
+                <p className="break-all">
+                  <strong>File:</strong>{" "}
+                  {doc.fileName}
+                </p>
+
+                {doc.fileUrl && (
+                  <p className="break-all text-xs text-blue-600">
+                    {doc.fileUrl}
+                  </p>
+                )}
+
+                {doc.fileSize > 0 && (
+                  <p>
+                    <strong>Size:</strong>{" "}
+                    {formatFileSize(doc.fileSize)}
+                  </p>
+                )}
+
+                {doc.notes && (
+                  <>
+                    <hr />
+
+                    <div>
+                      <strong>Notes</strong>
+
+                      <p className="mt-1 whitespace-pre-wrap text-gray-600">
+                        {doc.notes}
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Button onClick={() => openDocument(doc)}>
+                  Preview
                 </Button>
-              )}
 
-              {onDelete && (
                 <Button
-                  variant="danger"
-                  onClick={() =>
-                    onDelete(doc)
-                  }
+                  variant="secondary"
+                  onClick={() => downloadDocument(doc)}
                 >
-                  Delete
+                  Download
                 </Button>
-              )}
+
+                {onEdit && (
+                  <Button onClick={() => onEdit(doc)}>
+                    Edit
+                  </Button>
+                )}
+
+                {onDelete && (
+                  <Button
+                    variant="danger"
+                    onClick={() => onDelete(doc)}
+                  >
+                    Delete
+                  </Button>
+                )}
+              </div>
             </div>
-          </div>
-        </Card>
-      ))}
+          </Card>
+        );
+      })}
     </div>
   );
 }

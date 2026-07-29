@@ -1,13 +1,14 @@
-// src/components/Documents/DocumentForm.jsx
-
 import { useEffect, useState } from "react";
 import { Input, TextArea } from "../common";
-import { validateDocumentFile } from "../../services/documentService";
+import { validateDocumentFile } from "../../services/documentApi";
 
 export default function DocumentForm({
   document,
   transactions,
   expenses,
+  tenants,
+  properties,
+  units,
   onSubmit,
   onCancel,
 }) {
@@ -22,7 +23,7 @@ export default function DocumentForm({
     fileName: "",
     fileType: "",
     fileSize: 0,
-    fileData: "",
+    fileUrl: "",
   });
 
   useEffect(() => {
@@ -44,7 +45,7 @@ export default function DocumentForm({
   }
 
   function handleFileChange(e) {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
 
     if (!file) return;
 
@@ -56,61 +57,34 @@ export default function DocumentForm({
       return;
     }
 
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      setFormData((prev) => ({
-        ...prev,
-        file,
-        fileName: file.name,
-        fileType: file.type,
-        fileSize: file.size,
-        fileData: reader.result,
-      }));
-    };
-
-    reader.onerror = () => {
-      alert("Unable to read the selected file.");
-      e.target.value = "";
-    };
-
-    reader.readAsDataURL(file);
+    setFormData((prev) => ({
+      ...prev,
+      file,
+      fileName: file.name,
+      fileType: file.type,
+      fileSize: file.size,
+    }));
   }
 
-  function handleSubmit(e) {
-    e.preventDefault();
+  function getTransactionLabel(transaction) {
+    const tenant =
+      tenants.find((t) => t.id === transaction.tenantId);
 
-    if (
-      !document &&
-      (!formData.fileData || !formData.fileName)
-    ) {
-      alert("Please upload a document.");
-      return;
-    }
+    const property =
+      properties.find(
+        (p) => p.id === transaction.propertyId
+      );
 
-    const relatedList =
-      formData.relatedType === "Rental Income"
-        ? transactions
-        : expenses;
+    const unit =
+      units.find((u) => u.id === transaction.unitId);
 
-    const selected =
-      relatedList.find(
-        (item) => item.id === formData.relatedId
-      ) || {};
-
-    const relatedName =
-      formData.relatedType === "Rental Income"
-        ? `${selected.tenantName || ""}${
-            selected.billingPeriod
-              ? ` - ${selected.billingPeriod}`
-              : ""
-          }`
-        : selected.expenseName || "";
-
-    onSubmit({
-      ...formData,
-      relatedName,
-    });
+    return [
+      tenant?.fullName,
+      property?.propertyName,
+      unit?.unitNumber,
+    ]
+      .filter(Boolean)
+      .join(" • ");
   }
 
   const relatedItems =
@@ -118,11 +92,38 @@ export default function DocumentForm({
       ? transactions
       : expenses;
 
+  function handleSubmit(e) {
+    e.preventDefault();
+
+    if (!document && !formData.file) {
+      alert("Please upload a document.");
+      return;
+    }
+
+    const selected =
+      relatedItems.find(
+        (item) => item.id === formData.relatedId
+      ) || {};
+
+    let relatedName = "";
+
+    if (formData.relatedType === "Rental Income") {
+      relatedName = getTransactionLabel(selected);
+    } else {
+      relatedName =
+        selected.expenseName ||
+        selected.name ||
+        "";
+    }
+
+    onSubmit({
+      ...formData,
+      relatedName,
+    });
+  }
+
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="space-y-4"
-    >
+        <form onSubmit={handleSubmit} className="space-y-4">
       <Input
         label="Receipt Name"
         name="documentName"
@@ -180,14 +181,11 @@ export default function DocumentForm({
           <option value="">Select...</option>
 
           {relatedItems.map((item) => (
-            <option
-              key={item.id}
-              value={item.id}
-            >
+            <option key={item.id} value={item.id}>
               {formData.relatedType === "Rental Income"
-                ? `${item.tenantName} - ${item.billingPeriod}`
-                : `${item.expenseName} - R${Number(
-                    item.amount
+                ? getTransactionLabel(item)
+                : `${item.expenseName || item.name} - R${Number(
+                    item.amount || 0
                   ).toLocaleString()}`}
             </option>
           ))}
@@ -207,7 +205,7 @@ export default function DocumentForm({
           required={!document}
         />
 
-        {formData.fileName && (
+        {(formData.fileName || formData.fileUrl) && (
           <div className="mt-2 rounded-lg bg-gray-50 p-3 text-sm">
             <p className="font-medium">
               {formData.fileName}
@@ -218,12 +216,22 @@ export default function DocumentForm({
                 {(formData.fileSize / 1024).toFixed(1)} KB
               </p>
             )}
+
+            {formData.fileUrl && (
+              <a
+                href={formData.fileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-block text-blue-600 hover:underline"
+              >
+                View Current Document
+              </a>
+            )}
           </div>
         )}
 
         <p className="mt-2 text-xs text-gray-500">
-          Accepted formats: PDF, JPG, PNG, WEBP (Maximum
-          5 MB)
+          Accepted formats: PDF, JPG, PNG, WEBP (Maximum 5 MB)
         </p>
       </div>
 

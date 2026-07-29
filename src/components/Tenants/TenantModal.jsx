@@ -4,12 +4,17 @@ import { Button, Modal } from "../common";
 import TenantForm from "./TenantForm";
 
 const emptyForm = {
-  fullName: "",
+  firstName: "",
+  lastName: "",
   email: "",
   phone: "",
-  idNumber: "",
+  propertyId: "",
   unitId: "",
-  moveInDate: "",
+  leaseStart: "",
+  leaseEnd: "",
+  rent: "",
+  deposit: "",
+  status: "Active",
   notes: "",
 };
 
@@ -25,7 +30,10 @@ export default function TenantModal({
 
   useEffect(() => {
     if (tenant) {
-      setFormData(tenant);
+      setFormData({
+        ...emptyForm,
+        ...tenant,
+      });
     } else {
       setFormData(emptyForm);
     }
@@ -43,9 +51,29 @@ export default function TenantModal({
   function handleSubmit(e) {
     if (e) e.preventDefault();
 
+    const selectedUnit = units.find(
+      (u) => u.id === formData.unitId
+    );
+
     onSave({
       ...tenant,
       ...formData,
+
+      // Automatically populate propertyId
+      propertyId: selectedUnit
+        ? selectedUnit.propertyId
+        : "",
+
+      // Convert numeric values
+      rent:
+        formData.rent === ""
+          ? null
+          : Number(formData.rent),
+
+      deposit:
+        formData.deposit === ""
+          ? null
+          : Number(formData.deposit),
     });
   }
 

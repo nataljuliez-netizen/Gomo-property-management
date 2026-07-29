@@ -1,6 +1,4 @@
-// src/pages/Documents.jsx
-
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import PageHeader from "../components/common/PageHeader";
 import Card from "../components/common/Card";
@@ -13,99 +11,101 @@ import DocumentModal from "../components/Documents/DocumentModal";
 import DeleteDocumentModal from "../components/Documents/DeleteDocumentModal";
 
 import {
-  getAllDocuments,
-  addDocument,
-  updateDocument,
-  deleteDocument,
-} from "../services/documentService";
+  useDocuments,
+  useAddDocument,
+  useUpdateDocument,
+  useDeleteDocument,
+} from "../hooks/useDocuments";
 
-import { getAllTransactions } from "../services/transactionService";
-import { getAllExpenses } from "../services/expenseService";
+import { useTransactions } from "../hooks/useTransactions";
+import { useExpenses } from "../hooks/useExpenses";
+import { useTenants } from "../hooks/useTenants";
+import { useProperties } from "../hooks/useProperties";
+import { useUnits } from "../hooks/useUnits";
 
 import { can } from "../services/permissionService";
 
 export default function Documents() {
-  const [documents, setDocuments] = useState([]);
-  const [transactions, setTransactions] = useState([]);
-  const [expenses, setExpenses] = useState([]);
+  const {
+    documents = [],
+    loading,
+    error,
+  } = useDocuments();
+
+  const { transactions = [] } = useTransactions();
+  const { expenses = [] } = useExpenses();
+
+  const { tenants = [] } = useTenants();
+  const { properties = [] } = useProperties();
+  const { units = [] } = useUnits();
+
+  const addDocument = useAddDocument();
+  const updateDocument = useUpdateDocument();
+  const removeDocument = useDeleteDocument();
 
   const [search, setSearch] = useState("");
 
   const [showModal, setShowModal] = useState(false);
-  const [selectedDocument, setSelectedDocument] =
-    useState(null);
 
-  const [showDeleteModal, setShowDeleteModal] =
-    useState(false);
+  const [selectedDocument, setSelectedDocument] = useState(null);
 
-  /* -------------------------------- */
-  /* Permissions                      */
-  /* -------------------------------- */
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const canCreate = can("document.create");
   const canEdit = can("document.edit");
   const canDelete = can("document.delete");
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  function loadData() {
-    setDocuments(getAllDocuments());
-    setTransactions(getAllTransactions());
-    setExpenses(getAllExpenses());
-  }
-
-  function handleSave(document) {
+  async function handleSave(document) {
     if (selectedDocument) {
       if (!canEdit) return;
 
-      updateDocument(document);
+      await updateDocument.mutateAsync(document);
     } else {
       if (!canCreate) return;
 
-      addDocument(document);
+      await addDocument.mutateAsync(document);
     }
-
-    loadData();
 
     setShowModal(false);
     setSelectedDocument(null);
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!canDelete) return;
-
     if (!selectedDocument) return;
 
-    deleteDocument(selectedDocument.id);
-
-    loadData();
+    await removeDocument.mutateAsync(selectedDocument.id);
 
     setShowDeleteModal(false);
     setSelectedDocument(null);
   }
 
-  const filteredDocuments = documents.filter(
-    (document) => {
-      const text = search.toLowerCase();
+  const filteredDocuments = documents.filter((document) => {
+    const text = search.toLowerCase();
 
-      return (
-        document.documentName
-          ?.toLowerCase()
-          .includes(text) ||
-        document.documentType
-          ?.toLowerCase()
-          .includes(text) ||
-        document.relatedName
-          ?.toLowerCase()
-          .includes(text) ||
-        document.fileName
-          ?.toLowerCase()
-          .includes(text)
-      );
-    }
-  );
+    return (
+      document.documentName?.toLowerCase().includes(text) ||
+      document.documentType?.toLowerCase().includes(text) ||
+      document.relatedName?.toLowerCase().includes(text) ||
+      document.fileName?.toLowerCase().includes(text)
+    );
+  });
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        Loading documents...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 text-red-600">
+        Failed to load documents.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -163,6 +163,9 @@ export default function Documents() {
           document={selectedDocument}
           transactions={transactions}
           expenses={expenses}
+          tenants={tenants}
+          properties={properties}
+          units={units}
         />
       )}
 

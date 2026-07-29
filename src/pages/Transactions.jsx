@@ -1,6 +1,4 @@
-// src/pages/Transactions.jsx
-
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 
 import PageHeader from "../components/common/PageHeader";
 import Card from "../components/common/Card";
@@ -17,30 +15,40 @@ import ExpenseModal from "../components/Expenses/ExpenseModal";
 import DeleteExpenseModal from "../components/Expenses/DeleteExpenseModal";
 
 import {
-  getAllTransactions,
-  addTransaction,
-  updateTransaction,
-  deleteTransaction,
-} from "../services/transactionService";
+  useTransactions,
+  useAddTransaction,
+  useUpdateTransaction,
+  useDeleteTransaction,
+} from "../hooks/useTransactions";
 
 import {
-  getAllExpenses,
-  addExpense,
-  updateExpense,
-  deleteExpense,
-} from "../services/expenseService";
+  useExpenses,
+  useAddExpense,
+  useUpdateExpense,
+  useDeleteExpense,
+} from "../hooks/useExpenses";
 
-import { getTenants } from "../services/tenantService";
-import { getProperties } from "../services/propertyService";
-import { getUnits } from "../services/unitService";
+import { useTenants } from "../hooks/useTenants";
+import { useProperties } from "../hooks/useProperties";
+import { useUnits } from "../hooks/useUnits";
+
+import { can } from "../services/permissionService";
 
 export default function Transactions() {
-  const [transactions, setTransactions] = useState([]);
-  const [expenses, setExpenses] = useState([]);
+  const { transactions = [] } = useTransactions();
+  const { expenses = [] } = useExpenses();
 
-  const [tenants, setTenants] = useState([]);
-  const [properties, setProperties] = useState([]);
-  const [units, setUnits] = useState([]);
+  const { tenants = [] } = useTenants();
+  const { properties = [] } = useProperties();
+  const { units = [] } = useUnits();
+
+  const addTransaction = useAddTransaction();
+  const updateTransaction = useUpdateTransaction();
+  const removeTransaction = useDeleteTransaction();
+
+  const addExpense = useAddExpense();
+  const updateExpense = useUpdateExpense();
+  const removeExpense = useDeleteExpense();
 
   const [search, setSearch] = useState("");
 
@@ -62,211 +70,298 @@ export default function Transactions() {
   const [showDeleteExpense, setShowDeleteExpense] =
     useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const canCreateTransaction = can("transaction.create");
+  const canEditTransaction = can("transaction.edit");
+  const canDeleteTransaction = can("transaction.delete");
 
-  function loadData() {
-    setTransactions(getAllTransactions());
-    setExpenses(getAllExpenses());
+  const canCreateExpense = can("expense.create");
+  const canEditExpense = can("expense.edit");
+  const canDeleteExpense = can("expense.delete");
 
-    setTenants(getTenants());
-    setProperties(getProperties());
-    setUnits(getUnits());
-  }
-
-  function saveTransaction(data) {
+  async function saveTransaction(data) {
     if (selectedTransaction) {
-      updateTransaction(data);
-    } else {
-      addTransaction(data);
-    }
+      if (!canEditTransaction) return;
 
-    loadData();
+      await updateTransaction.mutateAsync({
+        ...selectedTransaction,
+        ...data,
+      });
+    } else {
+      if (!canCreateTransaction) return;
+
+      await addTransaction.mutateAsync(data);
+    }
 
     setShowTransactionModal(false);
     setSelectedTransaction(null);
   }
 
-  function saveExpense(data) {
+  async function saveExpense(data) {
     if (selectedExpense) {
-      updateExpense(data);
-    } else {
-      addExpense(data);
-    }
+      if (!canEditExpense) return;
 
-    loadData();
+      await updateExpense.mutateAsync({
+        ...selectedExpense,
+        ...data,
+      });
+    } else {
+      if (!canCreateExpense) return;
+
+      await addExpense.mutateAsync(data);
+    }
 
     setShowExpenseModal(false);
     setSelectedExpense(null);
   }
 
-  function confirmDeleteTransaction() {
-    deleteTransaction(selectedTransaction.id);
+  async function confirmDeleteTransaction() {
+    if (!selectedTransaction) return;
 
-    loadData();
+    await removeTransaction.mutateAsync(
+      selectedTransaction.id
+    );
 
     setShowDeleteTransaction(false);
     setSelectedTransaction(null);
   }
 
-  function confirmDeleteExpense() {
-    deleteExpense(selectedExpense.id);
+  async function confirmDeleteExpense() {
+    if (!selectedExpense) return;
 
-    loadData();
+    await removeExpense.mutateAsync(
+      selectedExpense.id
+    );
 
     setShowDeleteExpense(false);
     setSelectedExpense(null);
   }
 
-  const filteredTransactions = transactions.filter((t) => {
-    const text = search.toLowerCase();
+  const filteredTransactions = useMemo(() => {
+    const text = search.trim().toLowerCase();
 
-    return (
-      t.tenantName?.toLowerCase().includes(text) ||
-      t.propertyName?.toLowerCase().includes(text) ||
-      t.unitNumber?.toLowerCase().includes(text) ||
-      t.billingPeriod?.toLowerCase().includes(text)
-    );
-  });
+    if (!text) return transactions;
 
-  const filteredExpenses = expenses.filter((e) => {
-    const text = search.toLowerCase();
+    return transactions.filter((transaction) => {
+      const tenant =
+        tenants.find(
+          (t) => t.id === transaction.tenantId
+        ) || {};
 
-    return (
-      e.expenseName?.toLowerCase().includes(text) ||
-      e.propertyName?.toLowerCase().includes(text) ||
-      e.notes?.toLowerCase().includes(text)
-    );
-  });
+      const property =
+        properties.find(
+          (p) => p.id === transaction.propertyId
+        ) || {};
 
-  return (
+      const unit =
+        units.find(
+          (u) => u.id === transaction.unitId
+        ) || {};
+
+      return [
+        tenant.firstName,
+        tenant.lastName,
+        property.name,
+        unit.unitNumber,
+        transaction.category,
+        transaction.type,
+        transaction.description,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(text);
+    });
+  }, [
+    transactions,
+    tenants,
+    properties,
+    units,
+    search,
+  ]);
+
+  const filteredExpenses = useMemo(() => {
+    const text = search.trim().toLowerCase();
+
+    if (!text) return expenses;
+
+    return expenses.filter((expense) => {
+      const property =
+        properties.find(
+          (p) => p.id === expense.propertyId
+        ) || {};
+
+      const unit =
+        units.find(
+          (u) => u.id === expense.unitId
+        ) || {};
+
+      return [
+        expense.category,
+        expense.vendor,
+        property.name,
+        unit.unitNumber,
+        expense.description,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(text);
+    });
+  }, [
+    expenses,
+    properties,
+    units,
+    search,
+  ]);
+   return (
     <div className="space-y-8">
-
       <PageHeader
         title="Transactions"
         subtitle="Manage rental income and expenses."
       />
 
       <Card>
-
-        <div className="flex justify-between items-center mb-4">
-
+        <div className="flex items-center justify-between mb-4">
           <SearchBar
             search={search}
             setSearch={setSearch}
           />
 
           <div className="flex gap-2">
+            {canCreateTransaction && (
+              <Button
+                onClick={() => {
+                  setSelectedTransaction(null);
+                  setShowTransactionModal(true);
+                }}
+              >
+                + Record Rent
+              </Button>
+            )}
 
-            <Button
-              onClick={() => {
-                setSelectedTransaction(null);
-                setShowTransactionModal(true);
-              }}
-            >
-              + Record Rent
-            </Button>
-
-            <Button
-              onClick={() => {
-                setSelectedExpense(null);
-                setShowExpenseModal(true);
-              }}
-            >
-              + Record Expense
-            </Button>
-
+            {canCreateExpense && (
+              <Button
+                onClick={() => {
+                  setSelectedExpense(null);
+                  setShowExpenseModal(true);
+                }}
+              >
+                + Record Expense
+              </Button>
+            )}
           </div>
-
         </div>
-
       </Card>
 
       <section className="space-y-4">
-
         <h2 className="text-xl font-semibold">
           Rental Income
         </h2>
 
         <TransactionCards
           transactions={filteredTransactions}
-          onEdit={(transaction) => {
-            setSelectedTransaction(transaction);
-            setShowTransactionModal(true);
-          }}
-          onDelete={(transaction) => {
-            setSelectedTransaction(transaction);
-            setShowDeleteTransaction(true);
-          }}
+          tenants={tenants}
+          properties={properties}
+          units={units}
+          onEdit={
+            canEditTransaction
+              ? (transaction) => {
+                  setSelectedTransaction(transaction);
+                  setShowTransactionModal(true);
+                }
+              : undefined
+          }
+          onDelete={
+            canDeleteTransaction
+              ? (transaction) => {
+                  setSelectedTransaction(transaction);
+                  setShowDeleteTransaction(true);
+                }
+              : undefined
+          }
         />
-
       </section>
 
       <section className="space-y-4">
-
         <h2 className="text-xl font-semibold">
           Expenses
         </h2>
 
         <ExpenseCards
           expenses={filteredExpenses}
-          onEdit={(expense) => {
-            setSelectedExpense(expense);
-            setShowExpenseModal(true);
-          }}
-          onDelete={(expense) => {
-            setSelectedExpense(expense);
-            setShowDeleteExpense(true);
-          }}
+          properties={properties}
+          units={units}
+          onEdit={
+            canEditExpense
+              ? (expense) => {
+                  setSelectedExpense(expense);
+                  setShowExpenseModal(true);
+                }
+              : undefined
+          }
+          onDelete={
+            canDeleteExpense
+              ? (expense) => {
+                  setSelectedExpense(expense);
+                  setShowDeleteExpense(true);
+                }
+              : undefined
+          }
         />
-
       </section>
 
-      <TransactionModal
-        open={showTransactionModal}
-        onClose={() => {
-          setShowTransactionModal(false);
-          setSelectedTransaction(null);
-        }}
-        onSave={saveTransaction}
-        transaction={selectedTransaction}
-        tenants={tenants}
-        properties={properties}
-        units={units}
-      />
+      {(canCreateTransaction || canEditTransaction) && (
+        <TransactionModal
+          open={showTransactionModal}
+          onClose={() => {
+            setShowTransactionModal(false);
+            setSelectedTransaction(null);
+          }}
+          onSave={saveTransaction}
+          transaction={selectedTransaction}
+          tenants={tenants}
+          properties={properties}
+          units={units}
+        />
+      )}
 
-      <ExpenseModal
-        open={showExpenseModal}
-        onClose={() => {
-          setShowExpenseModal(false);
-          setSelectedExpense(null);
-        }}
-        onSave={saveExpense}
-        expense={selectedExpense}
-        properties={properties}
-      />
+      {(canCreateExpense || canEditExpense) && (
+        <ExpenseModal
+          open={showExpenseModal}
+          onClose={() => {
+            setShowExpenseModal(false);
+            setSelectedExpense(null);
+          }}
+          onSave={saveExpense}
+          expense={selectedExpense}
+          properties={properties}
+          units={units}
+        />
+      )}
 
-      <DeleteTransactionModal
-        open={showDeleteTransaction}
-        onClose={() => {
-          setShowDeleteTransaction(false);
-          setSelectedTransaction(null);
-        }}
-        onConfirm={confirmDeleteTransaction}
-        transaction={selectedTransaction}
-      />
+      {canDeleteTransaction && (
+        <DeleteTransactionModal
+          open={showDeleteTransaction}
+          onClose={() => {
+            setShowDeleteTransaction(false);
+            setSelectedTransaction(null);
+          }}
+          onConfirm={confirmDeleteTransaction}
+          transaction={selectedTransaction}
+        />
+      )}
 
-      <DeleteExpenseModal
-        open={showDeleteExpense}
-        onClose={() => {
-          setShowDeleteExpense(false);
-          setSelectedExpense(null);
-        }}
-        onConfirm={confirmDeleteExpense}
-        expense={selectedExpense}
-      />
-
+      {canDeleteExpense && (
+        <DeleteExpenseModal
+          open={showDeleteExpense}
+          onClose={() => {
+            setShowDeleteExpense(false);
+            setSelectedExpense(null);
+          }}
+          onConfirm={confirmDeleteExpense}
+          expense={selectedExpense}
+        />
+      )}
     </div>
   );
 }

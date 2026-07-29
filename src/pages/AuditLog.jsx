@@ -1,6 +1,4 @@
-// src/pages/AuditLog.jsx
-
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Trash2 } from "lucide-react";
 
 import PageHeader from "../components/common/PageHeader";
@@ -10,39 +8,41 @@ import Button from "../components/common/Button";
 import AuditCards from "../components/Audit/AuditCards";
 
 import {
-  getAllAuditLogs,
-  clearAuditLogs,
-} from "../services/auditService";
+  useAuditLogs,
+  useClearAuditLogs,
+} from "../hooks/useAuditLogs";
 
 export default function AuditLog() {
-  const [logs, setLogs] = useState([]);
+  const { logs } = useAuditLogs();
+  const clearLogs = useClearAuditLogs();
+
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    loadLogs();
-  }, []);
-
-  function loadLogs() {
-    setLogs(getAllAuditLogs());
-  }
-
-  function handleClear() {
+  async function handleClear() {
     const confirmed = window.confirm(
       "Are you sure you want to clear the audit log?"
     );
 
     if (!confirmed) return;
 
-    clearAuditLogs();
-    loadLogs();
+    try {
+      await clearLogs.mutateAsync();
+      alert("Audit log cleared.");
+    } catch (error) {
+      console.error(error);
+      alert("Failed to clear audit log.");
+    }
   }
 
   const filteredLogs = useMemo(() => {
-    return logs.filter((log) =>
-      `${log.action} ${log.description}`
+    return logs.filter((log) => {
+      const description =
+        log.changes?.description ?? "";
+
+      return `${log.action} ${description}`
         .toLowerCase()
-        .includes(search.toLowerCase())
-    );
+        .includes(search.toLowerCase());
+    });
   }, [logs, search]);
 
   return (

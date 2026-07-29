@@ -1,17 +1,5 @@
-// src/components/Expenses/ExpenseModal.jsx
-
-import { useEffect, useState } from "react";
 import Modal from "../common/Modal";
 import ExpenseForm from "./ExpenseForm";
-
-const emptyExpense = {
-  expenseName: "",
-  propertyId: "",
-  propertyName: "",
-  amount: "",
-  expenseDate: "",
-  notes: "",
-};
 
 export default function ExpenseModal({
   open,
@@ -19,27 +7,15 @@ export default function ExpenseModal({
   onSave,
   expense,
   properties,
+  units,
 }) {
-  const [currentExpense, setCurrentExpense] =
-    useState(emptyExpense);
-
-  useEffect(() => {
-    if (expense) {
-      setCurrentExpense(expense);
-    } else {
-      setCurrentExpense(emptyExpense);
-    }
-  }, [expense, open]);
+  if (!open) return null;
 
   function handleSubmit(data) {
-    if (expense) {
-      onSave({
-        ...expense,
-        ...data,
-      });
-    } else {
-      onSave(data);
-    }
+    onSave({
+      ...expense,
+      ...data,
+    });
   }
 
   return (
@@ -53,8 +29,9 @@ export default function ExpenseModal({
       }
     >
       <ExpenseForm
-        expense={currentExpense}
+        expense={expense}
         properties={properties}
+        units={units}
         onSubmit={handleSubmit}
         onCancel={onClose}
       />

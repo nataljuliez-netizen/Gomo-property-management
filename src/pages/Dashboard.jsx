@@ -1,7 +1,8 @@
 // src/pages/Dashboard.jsx
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
+import { useNotes } from "../hooks/useNotes";
 import {
   Building2,
   Home,
@@ -14,34 +15,85 @@ import {
   Plus,
 } from "lucide-react";
 
-import { getDashboardStats } from "../services/dashboardService";
+import { useProperties } from "../hooks/useProperties";
+import { useUnits } from "../hooks/useUnits";
+import { useTenants } from "../hooks/useTenants";
+import { useTransactions } from "../hooks/useTransactions";
+import { useExpenses } from "../hooks/useExpenses";
 
 const formatCurrency = (amount) =>
   new Intl.NumberFormat("en-ZA", {
     style: "currency",
     currency: "ZAR",
-  }).format(amount);
+  }).format(Number(amount || 0));
 
 export default function Dashboard() {
-  const [stats, setStats] = useState(getDashboardStats());
+  const { properties } = useProperties();
+  const { units } = useUnits();
+  const { tenants } = useTenants();
+  const { transactions } = useTransactions();
+  const { expenses } = useExpenses();
+  const { notes } = useNotes();
 
-  function loadDashboard() {
-    setStats(getDashboardStats());
-  }
+  const stats = useMemo(() => {
+    const totalProperties = properties.length;
+    const totalUnits = units.length;
+    const totalTenants = tenants.length;
 
-  useEffect(() => {
-    loadDashboard();
+    const rentCollected = transactions.reduce(
+      (sum, transaction) =>
+        sum + Number(transaction.amount || 0),
+      0
+    );
 
-    const refresh = () => loadDashboard();
+    const totalExpenses = expenses.reduce(
+      (sum, expense) =>
+        sum + Number(expense.amount || 0),
+      0
+    );
 
-    window.addEventListener("gomo-data-changed", refresh);
+    const occupiedUnits = tenants.filter(
+      (tenant) => tenant.status === "Active"
+    ).length;
 
-    return () =>
-      window.removeEventListener(
-        "gomo-data-changed",
-        refresh
-      );
-  }, []);
+    const vacantUnits = Math.max(
+      totalUnits - occupiedUnits,
+      0
+    );
+
+    return {
+      totalProperties,
+      totalUnits,
+      totalTenants,
+
+      rentCollected,
+      outstandingRent: 0,
+      totalExpenses,
+
+      netCashFlow:
+        rentCollected - totalExpenses,
+
+      vacantUnits,
+
+      rentDueThisMonth: 0,
+      overduePayments: 0,
+
+      pendingNotes: notes
+  .filter((note) => note.status === "Pending")
+  .sort(
+    (a, b) =>
+      new Date(a.dueDate) - new Date(b.dueDate)
+  )
+  .slice(0, 5),
+    };
+  }, [
+    properties,
+    units,
+    tenants,
+    transactions,
+    expenses,
+    notes,
+  ]);
 
   const cards = [
     {
@@ -64,19 +116,25 @@ export default function Dashboard() {
     },
     {
       title: "Rent Collected",
-      value: formatCurrency(stats.rentCollected),
+      value: formatCurrency(
+        stats.rentCollected
+      ),
       icon: Wallet,
       color: "bg-emerald-100 text-emerald-600",
     },
     {
       title: "Outstanding Rent",
-      value: formatCurrency(stats.outstandingRent),
+      value: formatCurrency(
+        stats.outstandingRent
+      ),
       icon: AlertTriangle,
       color: "bg-yellow-100 text-yellow-700",
     },
     {
       title: "Expenses",
-      value: formatCurrency(stats.totalExpenses),
+      value: formatCurrency(
+        stats.totalExpenses
+      ),
       icon: Receipt,
       color: "bg-red-100 text-red-600",
     },
@@ -84,7 +142,6 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-
       <div>
         <h1 className="text-3xl font-bold text-slate-800">
           Dashboard
@@ -128,7 +185,6 @@ export default function Dashboard() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-
         <div className="bg-white rounded-xl shadow-sm border p-6">
           <div className="flex items-center gap-2 mb-6">
             <TrendingUp className="text-green-600" />
@@ -138,10 +194,11 @@ export default function Dashboard() {
           </div>
 
           <div className="space-y-4">
-
             <Insight
               title="Net Cash Flow"
-              value={formatCurrency(stats.netCashFlow)}
+              value={formatCurrency(
+                stats.netCashFlow
+              )}
             />
 
             <Insight
@@ -158,7 +215,6 @@ export default function Dashboard() {
               title="Overdue Payments"
               value={stats.overduePayments}
             />
-
           </div>
         </div>
 
@@ -211,11 +267,9 @@ export default function Dashboard() {
             </div>
           )}
         </div>
-
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border p-6">
-
         <div className="flex items-center gap-2 mb-6">
           <Plus className="text-indigo-600" />
           <h2 className="text-xl font-semibold">
@@ -224,7 +278,6 @@ export default function Dashboard() {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-
           <ActionButton
             to="/properties"
             text="Add Property"
@@ -244,11 +297,8 @@ export default function Dashboard() {
             to="/transactions"
             text="Record Expense"
           />
-
         </div>
-
       </div>
-
     </div>
   );
 }
@@ -256,7 +306,9 @@ export default function Dashboard() {
 function Insight({ title, value }) {
   return (
     <div className="flex justify-between items-center border-b pb-3">
-      <span className="text-slate-600">{title}</span>
+      <span className="text-slate-600">
+        {title}
+      </span>
 
       <span className="font-semibold text-slate-800">
         {value}

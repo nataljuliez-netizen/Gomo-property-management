@@ -1,22 +1,5 @@
-// src/components/Transactions/TransactionModal.jsx
-
-import { useEffect, useState } from "react";
 import Modal from "../common/Modal";
 import TransactionForm from "./TransactionForm";
-
-const emptyTransaction = {
-  tenantId: "",
-  propertyId: "",
-  unitId: "",
-  billingPeriod: "",
-  rentPayable: "",
-  rentPaid: "",
-  rentDue: 0,
-  dueDate: "",
-  paymentDate: "",
-  status: "Due",
-  notes: "",
-};
 
 export default function TransactionModal({
   open,
@@ -27,26 +10,13 @@ export default function TransactionModal({
   properties,
   units,
 }) {
-  const [currentTransaction, setCurrentTransaction] =
-    useState(emptyTransaction);
-
-  useEffect(() => {
-    if (transaction) {
-      setCurrentTransaction(transaction);
-    } else {
-      setCurrentTransaction(emptyTransaction);
-    }
-  }, [transaction, open]);
+  if (!open) return null;
 
   function handleSubmit(data) {
-    if (transaction) {
-      onSave({
-        ...transaction,
-        ...data,
-      });
-    } else {
-      onSave(data);
-    }
+    onSave({
+      ...transaction,
+      ...data,
+    });
   }
 
   return (
@@ -55,12 +25,12 @@ export default function TransactionModal({
       onClose={onClose}
       title={
         transaction
-          ? "Edit Rental Transaction"
-          : "Record Rental Income"
+          ? "Edit Transaction"
+          : "Record Rent Payment"
       }
     >
       <TransactionForm
-        transaction={currentTransaction}
+        transaction={transaction}
         tenants={tenants}
         properties={properties}
         units={units}

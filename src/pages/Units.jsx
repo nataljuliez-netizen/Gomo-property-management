@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   Button,
@@ -13,19 +13,31 @@ import UnitModal from "../components/Units/UnitModal";
 import DeleteUnitModal from "../components/Units/DeleteUnitModal";
 
 import {
-  getUnits,
-  addUnit,
-  updateUnit,
-  deleteUnit,
-} from "../services/unitService";
+  useUnits,
+  useAddUnit,
+  useUpdateUnit,
+  useDeleteUnit,
+} from "../hooks/useUnits";
 
-import { getProperties } from "../services/propertyService";
+import { useProperties } from "../hooks/useProperties";
 
 import { can } from "../services/permissionService";
 
 export default function Units() {
-  const [units, setUnits] = useState([]);
-  const [properties, setProperties] = useState([]);
+  const {
+    units,
+    loading,
+    error,
+  } = useUnits();
+
+  const {
+    properties,
+    loading: propertiesLoading,
+  } = useProperties();
+
+  const addMutation = useAddUnit();
+  const updateMutation = useUpdateUnit();
+  const deleteMutation = useDeleteUnit();
 
   const [search, setSearch] = useState("");
 
@@ -49,19 +61,6 @@ export default function Units() {
   const canEdit = can("unit.edit");
   const canDelete = can("unit.delete");
 
-  useEffect(() => {
-    loadUnits();
-    loadProperties();
-  }, []);
-
-  function loadUnits() {
-    setUnits(getUnits());
-  }
-
-  function loadProperties() {
-    setProperties(getProperties());
-  }
-
   function openAddModal() {
     if (!canCreate) return;
 
@@ -76,21 +75,24 @@ export default function Units() {
     setShowModal(true);
   }
 
-  function handleSave(unit) {
-    if (selectedUnit) {
-      if (!canEdit) return;
+  async function handleSave(unit) {
+    try {
+      if (selectedUnit) {
+        if (!canEdit) return;
 
-      updateUnit(unit);
-    } else {
-      if (!canCreate) return;
+        await updateMutation.mutateAsync(unit);
+      } else {
+        if (!canCreate) return;
 
-      addUnit(unit);
+        await addMutation.mutateAsync(unit);
+      }
+
+      setShowModal(false);
+      setSelectedUnit(null);
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
     }
-
-    loadUnits();
-
-    setShowModal(false);
-    setSelectedUnit(null);
   }
 
   function openDeleteModal(id) {
@@ -104,17 +106,21 @@ export default function Units() {
     setShowDeleteModal(true);
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!canDelete) return;
-
     if (!unitToDelete) return;
 
-    deleteUnit(unitToDelete.id);
+    try {
+      await deleteMutation.mutateAsync(
+        unitToDelete.id
+      );
 
-    loadUnits();
-
-    setShowDeleteModal(false);
-    setUnitToDelete(null);
+      setShowDeleteModal(false);
+      setUnitToDelete(null);
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
+    }
   }
 
   const filteredUnits = units.filter(
@@ -128,7 +134,7 @@ export default function Units() {
 
       return (
         unit.unitNumber
-          .toLowerCase()
+          ?.toLowerCase()
           .includes(text) ||
 
         (property.name || "")
@@ -136,11 +142,27 @@ export default function Units() {
           .includes(text) ||
 
         unit.status
-          .toLowerCase()
+          ?.toLowerCase()
           .includes(text)
       );
     }
   );
+
+  if (loading || propertiesLoading) {
+    return (
+      <div className="p-6">
+        Loading...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 text-red-600">
+        {error.message}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

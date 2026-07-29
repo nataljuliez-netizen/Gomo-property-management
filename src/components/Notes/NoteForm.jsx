@@ -6,44 +6,36 @@ import { Input, TextArea } from "../common";
 export default function NoteForm({
   note,
   properties,
+  tenants,
   onSubmit,
   onCancel,
 }) {
   const [formData, setFormData] = useState({
     title: "",
-    category: "Tenant Payment",
     propertyId: "",
-    propertyName: "",
+    tenantId: "",
     dueDate: "",
     priority: "Medium",
-    description: "",
+    status: "Pending",
+    content: "",
   });
 
   useEffect(() => {
     if (note) {
       setFormData({
-        ...note,
+        title: note.title || "",
+        propertyId: note.propertyId || "",
+        tenantId: note.tenantId || "",
+        dueDate: note.dueDate || "",
+        priority: note.priority || "Medium",
+        status: note.status || "Pending",
+        content: note.content || "",
       });
     }
   }, [note]);
 
   function handleChange(e) {
     const { name, value } = e.target;
-
-    if (name === "propertyId") {
-      const property =
-        properties.find(
-          (p) => p.id === value
-        ) || {};
-
-      setFormData((prev) => ({
-        ...prev,
-        propertyId: value,
-        propertyName: property.name || "",
-      }));
-
-      return;
-    }
 
     setFormData((prev) => ({
       ...prev,
@@ -53,7 +45,6 @@ export default function NoteForm({
 
   function handleSubmit(e) {
     e.preventDefault();
-
     onSubmit(formData);
   }
 
@@ -73,28 +64,6 @@ export default function NoteForm({
 
       <div>
         <label className="mb-1 block font-medium">
-          Category
-        </label>
-
-        <select
-          name="category"
-          value={formData.category}
-          onChange={handleChange}
-          className="w-full rounded-lg border p-2"
-        >
-          <option>Tenant Payment</option>
-          <option>Vacant Unit</option>
-          <option>Mortgage</option>
-          <option>Maintenance</option>
-          <option>Deposit Banking</option>
-          <option>Lease Renewal</option>
-          <option>Follow-up</option>
-          <option>Other</option>
-        </select>
-      </div>
-
-      <div>
-        <label className="mb-1 block font-medium">
           Related Property (Optional)
         </label>
 
@@ -104,9 +73,7 @@ export default function NoteForm({
           onChange={handleChange}
           className="w-full rounded-lg border p-2"
         >
-          <option value="">
-            None
-          </option>
+          <option value="">None</option>
 
           {properties.map((property) => (
             <option
@@ -119,13 +86,36 @@ export default function NoteForm({
         </select>
       </div>
 
+      <div>
+        <label className="mb-1 block font-medium">
+          Related Tenant (Optional)
+        </label>
+
+        <select
+          name="tenantId"
+          value={formData.tenantId}
+          onChange={handleChange}
+          className="w-full rounded-lg border p-2"
+        >
+          <option value="">None</option>
+
+          {tenants.map((tenant) => (
+            <option
+              key={tenant.id}
+              value={tenant.id}
+            >
+              {tenant.firstName} {tenant.lastName}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <Input
         label="Due Date"
         type="date"
         name="dueDate"
         value={formData.dueDate}
         onChange={handleChange}
-        required
       />
 
       <div>
@@ -145,10 +135,26 @@ export default function NoteForm({
         </select>
       </div>
 
+      <div>
+        <label className="mb-1 block font-medium">
+          Status
+        </label>
+
+        <select
+          name="status"
+          value={formData.status}
+          onChange={handleChange}
+          className="w-full rounded-lg border p-2"
+        >
+          <option>Pending</option>
+          <option>Completed</option>
+        </select>
+      </div>
+
       <TextArea
-        label="Description (Optional)"
-        name="description"
-        value={formData.description}
+        label="Content"
+        name="content"
+        value={formData.content}
         onChange={handleChange}
         placeholder="Add any extra information..."
       />
