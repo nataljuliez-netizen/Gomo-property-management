@@ -96,15 +96,16 @@ export default function Properties() {
 
     if (!propertyToDelete) return;
 
-    try {
-      await deleteProperty(propertyToDelete.id);
+  try {
+  await deleteProperty(propertyToDelete.id);
 
-      setShowDeleteModal(false);
-      setPropertyToDelete(null);
-    } catch (error) {
-      console.error(error);
-      alert("Failed to delete property.");
-    }
+  setShowDeleteModal(false);
+  setPropertyToDelete(null);
+} catch (error) {
+  console.error(error);
+
+  alert(error.message || "Failed to delete property.");
+}
   }
 
   const filteredProperties = properties.filter(

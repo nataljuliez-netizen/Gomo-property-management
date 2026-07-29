@@ -49,6 +49,21 @@ export async function updateTenant(tenant) {
 }
 
 export async function deleteTenant(id) {
+  // Check for linked notes
+  const { count, error: countError } = await supabase
+    .from("notes")
+    .select("*", { count: "exact", head: true })
+    .eq("tenantId", id);
+
+  if (countError) throw countError;
+
+  if ((count ?? 0) > 0) {
+    throw new Error(
+      `This tenant cannot be deleted because they have ${count} note${count === 1 ? "" : "s"} attached. Please delete those notes first.`
+    );
+  }
+
+  // Delete tenant
   const { error } = await supabase
     .from("tenants")
     .delete()

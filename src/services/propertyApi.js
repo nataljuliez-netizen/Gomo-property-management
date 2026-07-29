@@ -49,6 +49,21 @@ export async function updateProperty(property) {
 }
 
 export async function deleteProperty(id) {
+  // Check for linked transactions
+  const { count, error: countError } = await supabase
+    .from("transactions")
+    .select("*", { count: "exact", head: true })
+    .eq("propertyId", id);
+
+  if (countError) throw countError;
+
+  if ((count ?? 0) > 0) {
+    throw new Error(
+      `This property cannot be deleted because it has ${count} transaction${count === 1 ? "" : "s"} associated with it. Please delete those transactions first.`
+    );
+  }
+
+  // Delete property
   const { error } = await supabase
     .from("properties")
     .delete()
